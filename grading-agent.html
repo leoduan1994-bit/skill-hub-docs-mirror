@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>布置英语作文</title>
+    <style>
+        :root {
+            --color-gray-50: #F9FAFB;
+            --color-gray-100: #F3F4F6;
+            --color-gray-200: #E5E7EB;
+            --color-gray-300: #D1D5DB;
+            --color-gray-400: #9CA3AF;
+            --color-gray-500: #6B7280;
+            --color-gray-600: #4B5563;
+            --color-gray-700: #374151;
+            --color-gray-800: #1F2937;
+            --color-gray-900: #111827;
+            --color-blue-50: #EFF6FF;
+            --color-blue-100: #DBEAFE;
+            --color-blue-200: #BFDBFE;
+            --color-blue-500: #3B82F6;
+            --color-blue-600: #2563EB;
+            --color-blue-700: #1D4ED8;
+            --color-purple-50: #FAF5FF;
+            --color-purple-100: #F3E8FF;
+            --color-purple-200: #E9D5FF;
+            --color-purple-500: #A855F7;
+            --color-purple-600: #9333EA;
+            --color-purple-700: #7E22CE;
+            --color-green-50: #F0FDF4;
+            --color-green-100: #D1FAE5;
+            --color-green-400: #4ADE80;
+            --color-green-500: #22C55E;
+            --color-green-600: #16A34A;
+            --color-green-700: #15803D;
+            --color-teal-400: #2DD4BF;
+            --color-teal-500: #14B8A6;
+            --color-yellow-50: #FEFCE8;
+            --color-yellow-500: #EAB308;
+            --color-red-500: #EF4444;
+
+            --color-background: var(--color-gray-50);
+            --color-foreground: var(--color-gray-900);
+            --color-card: white;
+            --color-border: var(--color-gray-200);
+            --color-muted-foreground: var(--color-gray-500);
+            --color-primary: var(--color-blue-600);
+            --color-agent: var(--color-purple-600);
+            --color-agent-light: var(--color-purple-50);
+            --color-success: var(--color-green-600);
+
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.25rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            --space-10: 2.5rem;
+
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-base: 1rem;
+            --font-size-lg: 1.125rem;
+            --font-size-xl: 1.25rem;
+            --font-size-2xl: 1.5rem;
+
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+
+            --leading-normal: 1.5;
+            --leading-snug: 1.375;
+            --leading-tight: 1.25;
+
+            --radius-md: 0.375rem;
+            --radius-lg: 0.5rem;
+            --radius-xl: 0.75rem;
+            --radius-2xl: 1rem;
+            --radius-3xl: 1.5rem;
+            --radius-full: 9999px;
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-default: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+            --duration-fast: 150ms;
+            --duration-normal: 200ms;
+            --duration-slow: 300ms;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f0f5;
+            color: var(--color-foreground);
+            line-height: var(--leading-normal);
+            font-size: var(--font-size-base);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (min-width: 640px) {
+            .app {
+                max-width: 430px;
+                margin: 0 auto;
+                box-shadow: var(--shadow-lg);
+            }
+        }
+
+        /* ========== Page Container ========== */
+        .page {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            transition: transform var(--duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--color-background);
+        }
+
+        .page-hidden-right { transform: translateX(100%); }
+        .page-hidden-left { transform: translateX(-100%); }
+        .page-active { transform: translateX(0); }
+
+        /* ================================================================
+           PAGE 1: Assignment Page
+           ================================================================ */
+
+        /* Status Bar Mockup */
+        .status-bar {
+            background: linear-gradient(135deg, #e8e0f0 0%, #d8e8f8 100%);
+            padding: 12px var(--space-4) 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            flex-shrink: 0;
+        }
+        .status-time {
+            background: var(--color-foreground);
+            color: white;
+            padding: 2px 10px;
+            border-radius: var(--radius-full);
+            font-size: 15px;
+            font-weight: var(--font-weight-bold);
+        }
+        .status-icons {
+            display: flex; align-items: center; gap: 4px;
+            font-size: var(--font-size-sm);
+            color: var(--color-foreground);
+        }
+
+        /* Nav Bar */
+        .nav-bar {
+            background: linear-gradient(135deg, #e8e0f0 0%, #d8e8f8 100%);
+            padding: var(--space-2) var(--space-4) var(--space-3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .nav-back {
+            font-size: 22px;
+            color: var(--color-foreground);
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .nav-title {
+            font-size: 17px;
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-foreground);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .nav-title-swap {
+            font-size: 14px;
+            color: var(--color-gray-500);
+        }
+        .nav-right {
+            font-size: var(--font-size-sm);
+            color: var(--color-foreground);
+            cursor: pointer;
+        }
+
+        /* Assignment Form */
+        .assignment-scroll {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            background: var(--color-card);
+        }
+
+        /* Homework Name */
+        .homework-name {
+            background: linear-gradient(180deg, #eee8f4 0%, #f4f0fa 100%);
+            padding: var(--space-4) var(--space-4);
+        }
+        .homework-name-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-primary);
+            font-weight: var(--font-weight-medium);
+        }
+        .homework-name-value {
+            font-size: var(--font-size-base);
+            color: var(--color-foreground);
+            margin-top: 4px;
+        }
+
+        /* Form Section */
+        .form-section {
+            background: var(--color-card);
+            padding: 0 var(--space-4);
+        }
+
+        /* Row */
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-4) 0;
+            border-bottom: 1px solid var(--color-gray-100);
+            cursor: pointer;
+        }
+        .form-row:last-child { border-bottom: none; }
+
+        .form-label {
+            font-size: var(--font-size-base);
+            color: var(--color-foreground);
+            font-weight: var(--font-weight-medium);
+        }
+        .form-value {
+            display: flex; align-items: center; gap: 4px;
+            font-size: var(--font-size-base);
+            color: var(--color-gray-400);
+        }
+        .form-value .arrow { font-size: 18px; }
+
+        /* Textarea */
+        .textarea-section {
+            padding: 0 var(--space-4);
+            background: var(--color-card);
+        }
+        .textarea-box {
+            min-height: 180px;
+            padding: var(--space-3) 0;
+        }
+        .textarea-placeholder {
+            color: var(--color-primary);
+            opacity: 0.5;
+            font-size: var(--font-size-base);
+        }
+        .textarea-count {
+            text-align: right;
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-400);
+            padding-bottom: var(--space-3);
+            border-bottom: 1px solid var(--color-gray-100);
+        }
+
+        /* Switch */
+        .switch-track {
+            width: 44px; height: 26px;
+            background: var(--color-gray-300);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .switch-thumb {
+            width: 22px; height: 22px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px; left: 2px;
+            transition: transform var(--duration-fast);
+            box-shadow: var(--shadow-sm);
+        }
+        .switch-track.on { background: var(--color-green-400); }
+        .switch-track.on .switch-thumb { transform: translateX(18px); }
+
+        /* Agent Entry - Special Row */
+        .agent-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-4) 0;
+            border-bottom: 1px solid var(--color-gray-100);
+            cursor: pointer;
+            position: relative;
+        }
+        .agent-entry-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        .agent-entry-icon {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, var(--color-purple-500), var(--color-blue-500));
+            border-radius: var(--radius-lg);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .agent-entry-text {
+            display: flex;
+            flex-direction: column;
+        }
+        .agent-entry-title {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-foreground);
+        }
+        .agent-entry-desc {
+            font-size: var(--font-size-xs);
+            color: var(--color-muted-foreground);
+            margin-top: 1px;
+        }
+        .agent-entry-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        .agent-badge {
+            padding: 2px 8px;
+            background: var(--color-purple-100);
+            color: var(--color-agent);
+            border-radius: var(--radius-full);
+            font-size: 10px;
+            font-weight: var(--font-weight-bold);
+            letter-spacing: 0.3px;
+        }
+        .agent-status-text {
+            font-size: var(--font-size-sm);
+            color: var(--color-agent);
+        }
+        .agent-status-text.configured {
+            color: var(--color-success);
+        }
+
+        /* Bottom Area */
+        .bottom-area {
+            background: var(--color-card);
+            padding: var(--space-4);
+            flex-shrink: 0;
+            border-top: 1px solid var(--color-gray-100);
+        }
+        .bottom-hint {
+            text-align: center;
+            font-size: var(--font-size-xs);
+            color: var(--color-muted-foreground);
+            margin-bottom: var(--space-3);
+        }
+        .bottom-btn {
+            width: 100%;
+            height: 48px;
+            background: linear-gradient(135deg, var(--color-teal-400), var(--color-teal-500));
+            color: white;
+            border: none;
+            border-radius: var(--radius-xl);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            cursor: pointer;
+            letter-spacing: 1px;
+        }
+        .bottom-btn:active { opacity: 0.9; }
+
+        /* ================================================================
+           PAGE 2: Agent Chat Page
+           ================================================================ */
+
+        .agent-page { background: var(--color-background); }
+
+        .agent-header {
+            background: var(--color-card);
+            padding: var(--space-3) var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            border-bottom: 1px solid var(--color-border);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .agent-header-back {
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: var(--font-size-xl);
+            color: var(--color-gray-600);
+            cursor: pointer;
+            border-radius: var(--radius-lg);
+            flex-shrink: 0;
+        }
+        .agent-header-back:active { background: var(--color-gray-100); }
+        .agent-header-info-wrap {
+            display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 0;
+        }
+        .agent-header-avatar {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--color-purple-500), var(--color-blue-500));
+            border-radius: var(--radius-xl);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 20px; flex-shrink: 0;
+        }
+        .agent-header-info { min-width: 0; }
+        .agent-header-name {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-foreground);
+        }
+        .agent-header-status {
+            font-size: var(--font-size-xs);
+            color: var(--color-success);
+            display: flex; align-items: center; gap: 4px;
+        }
+        .status-dot {
+            width: 6px; height: 6px;
+            background: var(--color-success);
+            border-radius: var(--radius-full);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .agent-header-badge {
+            padding: 2px var(--space-2);
+            background: var(--color-purple-100);
+            color: var(--color-agent);
+            border-radius: var(--radius-full);
+            font-size: 10px;
+            font-weight: var(--font-weight-bold);
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-4);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+            -webkit-overflow-scrolling: touch;
+        }
+        .msg-agent {
+            display: flex; gap: var(--space-3); align-items: flex-start; max-width: 92%;
+        }
+        .msg-avatar {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--color-purple-500), var(--color-blue-500));
+            border-radius: var(--radius-lg);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 16px; flex-shrink: 0; margin-top: 2px;
+        }
+        .msg-bubble-agent {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--space-1) var(--radius-2xl) var(--radius-2xl) var(--radius-2xl);
+            padding: var(--space-4);
+            box-shadow: var(--shadow-sm);
+        }
+        .msg-text {
+            font-size: var(--font-size-sm);
+            color: var(--color-gray-700);
+            line-height: var(--leading-normal);
+        }
+        .msg-text strong { color: var(--color-foreground); font-weight: var(--font-weight-semibold); }
+
+        .msg-user { display: flex; justify-content: flex-end; }
+        .msg-bubble-user {
+            background: var(--color-primary);
+            color: white;
+            border-radius: var(--radius-2xl) var(--space-1) var(--radius-2xl) var(--radius-2xl);
+            padding: var(--space-3) var(--space-4);
+            max-width: 80%;
+            font-size: var(--font-size-sm);
+            line-height: var(--leading-normal);
+        }
+
+        /* Quick Tags */
+        .quick-tags-block { padding: var(--space-2) 0; }
+        .quick-tags-label {
+            font-size: var(--font-size-xs);
+            color: var(--color-muted-foreground);
+            margin-bottom: var(--space-2);
+        }
+        .quick-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+        .tag {
+            padding: var(--space-2) var(--space-3);
+            background: white;
+            color: var(--color-agent);
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            border: 1px solid var(--color-purple-200);
+            box-shadow: var(--shadow-sm);
+            transition: all var(--duration-fast);
+            white-space: nowrap;
+        }
+        .tag:active { background: var(--color-purple-100); transform: scale(0.95); }
+
+        /* Result Card */
+        .result-card {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--space-1) var(--radius-2xl) var(--radius-2xl) var(--radius-2xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .result-card-header {
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-green-50);
+            border-bottom: 1px solid #DCFCE7;
+            display: flex; align-items: center; gap: var(--space-2);
+        }
+        .result-check {
+            width: 20px; height: 20px;
+            background: var(--color-success);
+            border-radius: var(--radius-full);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 12px; flex-shrink: 0;
+        }
+        .result-card-title {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-green-700);
+        }
+        .result-card-body { padding: var(--space-4); }
+        .result-items { display: grid; gap: var(--space-3); }
+        .result-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: var(--font-size-sm);
+        }
+        .result-label { color: var(--color-muted-foreground); }
+        .result-value { font-weight: var(--font-weight-semibold); color: var(--color-foreground); }
+        .result-value.highlight { color: var(--color-agent); }
+        .result-divider { height: 1px; background: var(--color-gray-100); margin: var(--space-1) 0; }
+        .result-card-footer {
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-gray-50);
+            border-top: 1px solid var(--color-border);
+            display: flex; gap: var(--space-3);
+        }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            height: 36px; padding: 0 var(--space-4);
+            border-radius: var(--radius-lg);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            transition: all var(--duration-fast);
+            border: none; outline: none; flex: 1;
+        }
+        .btn-ghost {
+            background: transparent; color: var(--color-gray-600);
+            border: 1px solid var(--color-border);
+        }
+        .btn-ghost:active { background: var(--color-gray-100); }
+        .btn-agent { background: var(--color-agent); color: white; }
+        .btn-agent:active { background: var(--color-purple-700); }
+
+        /* Typing Indicator */
+        .typing { display: flex; gap: var(--space-3); align-items: flex-start; }
+        .typing-dots {
+            display: flex; gap: 4px;
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--space-1) var(--radius-2xl) var(--radius-2xl) var(--radius-2xl);
+        }
+        .typing-dot {
+            width: 8px; height: 8px;
+            background: var(--color-gray-400);
+            border-radius: var(--radius-full);
+            animation: typingAnim 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingAnim {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
+
+        /* Input Bar */
+        .input-bar {
+            background: var(--color-card);
+            padding: var(--space-3) var(--space-4);
+            border-top: 1px solid var(--color-border);
+            flex-shrink: 0;
+        }
+        .input-row { display: flex; gap: var(--space-2); align-items: flex-end; }
+        .input-wrapper {
+            flex: 1;
+            background: var(--color-gray-100);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-2) var(--space-4);
+            min-height: 40px;
+            display: flex; align-items: center;
+            border: 2px solid transparent;
+            transition: border-color var(--duration-fast);
+        }
+        .input-wrapper:focus-within {
+            border-color: var(--color-agent);
+            background: white;
+        }
+        .input-field {
+            width: 100%; border: none; background: transparent;
+            font-size: var(--font-size-sm);
+            color: var(--color-foreground);
+            outline: none; resize: none;
+            font-family: inherit;
+            line-height: var(--leading-normal);
+            max-height: 80px;
+        }
+        .input-field::placeholder { color: var(--color-gray-400); }
+        .send-btn {
+            width: 40px; height: 40px;
+            background: var(--color-agent);
+            border: none; border-radius: var(--radius-full);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 18px;
+            cursor: pointer; flex-shrink: 0;
+            transition: all var(--duration-fast);
+        }
+        .send-btn:active { background: var(--color-purple-700); transform: scale(0.9); }
+        .send-btn.disabled { background: var(--color-gray-300); cursor: default; }
+        .input-hint {
+            font-size: 11px;
+            color: var(--color-muted-foreground);
+            margin-top: var(--space-1);
+            padding: 0 var(--space-2);
+        }
+
+        /* Animations */
+        .fade-in { animation: fadeIn var(--duration-slow) ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: var(--space-3) var(--space-6);
+            border-radius: var(--radius-lg);
+            font-size: var(--font-size-sm);
+            z-index: 2000;
+            display: none;
+        }
+        .toast.show { display: block; animation: fadeIn var(--duration-fast); }
+    </style>
+</head>
+<body>
+    <div class="app">
+
+        <!-- ==================== PAGE 1: Assignment ==================== -->
+        <div class="page page-active" id="page-assignment">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <span class="status-time">10:47</span>
+                <span class="status-icons">.ill 4G <span style="background:#111;color:#4ade80;padding:1px 4px;border-radius:4px;font-size:11px;">64</span></span>
+            </div>
+
+            <!-- Nav -->
+            <div class="nav-bar">
+                <span class="nav-back">&lsaquo;</span>
+                <span class="nav-title">英语/高二 <span class="nav-title-swap">&#8652;</span></span>
+                <span class="nav-right">历史记录</span>
+            </div>
+
+            <!-- Scrollable Form -->
+            <div class="assignment-scroll">
+                <!-- Homework Name -->
+                <div class="homework-name">
+                    <div class="homework-name-label">作业名称</div>
+                    <div class="homework-name-value">高二AI英语作文3月30号</div>
+                </div>
+
+                <div class="form-section">
+                    <!-- 作文题目 -->
+                    <div class="form-row">
+                        <span class="form-label" style="color: var(--color-primary);">作文题目</span>
+                        <span class="form-value">文本 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+                </div>
+
+                <!-- Textarea -->
+                <div class="textarea-section">
+                    <div class="textarea-box">
+                        <div class="textarea-placeholder">请输入作文题目</div>
+                    </div>
+                    <div class="textarea-count">0/6000</div>
+                </div>
+
+                <div class="form-section">
+                    <!-- 题目展示在答题卡上 -->
+                    <div class="form-row">
+                        <span class="form-label">题目展示在答题卡上</span>
+                        <div class="switch-track" onclick="this.classList.toggle('on')">
+                            <div class="switch-thumb"></div>
+                        </div>
+                    </div>
+
+                    <!-- 文体 -->
+                    <div class="form-row">
+                        <span class="form-label">文体</span>
+                        <span class="form-value">应用文 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+
+                    <!-- 词数 -->
+                    <div class="form-row">
+                        <span class="form-label">词数</span>
+                        <span class="form-value">100-120 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+
+                    <!-- 满分 -->
+                    <div class="form-row">
+                        <span class="form-label">满分</span>
+                        <span class="form-value">15分 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+
+                    <!-- 评分标准 -->
+                    <div class="form-row">
+                        <span class="form-label">评分标准</span>
+                        <span class="form-value">标准 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+
+                    <!-- ★ 个性化评分标准 Agent Entry ★ -->
+                    <div class="agent-entry" onclick="openAgentPage()">
+                        <div class="agent-entry-left">
+                            <div class="agent-entry-icon">🤖</div>
+                            <div class="agent-entry-text">
+                                <div class="agent-entry-title">个性化评分标准</div>
+                                <div class="agent-entry-desc">告诉 AI 您的评分要求</div>
+                            </div>
+                        </div>
+                        <div class="agent-entry-right">
+                            <span class="agent-badge">AI</span>
+                            <span class="agent-status-text" id="agentStatusText">未设置</span>
+                            <span class="form-value"><span class="arrow">&rsaquo;</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom -->
+            <div class="bottom-area">
+                <div class="bottom-hint">布置后可前往智能批阅机【AI作文】中创建批阅任务</div>
+                <button class="bottom-btn">答题卡设置</button>
+            </div>
+        </div>
+
+        <!-- ==================== PAGE 2: Agent Chat ==================== -->
+        <div class="page page-hidden-right agent-page" id="page-agent">
+            <!-- Header -->
+            <header class="agent-header">
+                <div class="agent-header-back" onclick="closeAgentPage()">&#8249;</div>
+                <div class="agent-header-info-wrap">
+                    <div class="agent-header-avatar">🤖</div>
+                    <div class="agent-header-info">
+                        <div class="agent-header-name">个性化评分 Agent</div>
+                        <div class="agent-header-status">
+                            <span class="status-dot"></span>
+                            在线 · 根据您的要求智能调分
+                        </div>
+                    </div>
+                </div>
+                <div class="agent-header-badge">AI Agent</div>
+            </header>
+
+            <!-- Chat Area -->
+            <div class="chat-area" id="chatArea">
+                <!-- Agent Welcome -->
+                <div class="msg-agent fade-in">
+                    <div class="msg-avatar">🤖</div>
+                    <div class="msg-bubble-agent">
+                        <div class="msg-text">
+                            您好！我是<strong>个性化评分 Agent</strong>。<br><br>
+                            告诉我您的评分要求，AI 会自动帮您调整打分，比如：<br>
+                            · 整体偏严格还是偏宽松<br>
+                            · 高分上限、平均分区间<br>
+                            · 特定加减分规则<br><br>
+                            说出您的需求，剩下的交给我。
+                        </div>
+                        <!-- Quick Tags -->
+                        <div class="quick-tags-block">
+                            <div class="quick-tags-label">快速选择 ↓</div>
+                            <div class="quick-tags">
+                                <span class="tag" onclick="sendQuick('偏严格，高分不超过13分')">偏严格 · 高分≤13</span>
+                                <span class="tag" onclick="sendQuick('偏宽松，鼓励为主')">偏宽松 · 鼓励为主</span>
+                                <span class="tag" onclick="sendQuick('平均分控制在10分左右')">平均分约10分</span>
+                                <span class="tag" onclick="sendQuick('应用文格式正确可加分')">格式加分</span>
+                                <span class="tag" onclick="sendQuick('字数不足100词要扣分')">字数不足扣分</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Bar -->
+            <div class="input-bar">
+                <div class="input-row">
+                    <div class="input-wrapper">
+                        <textarea
+                            class="input-field"
+                            id="inputField"
+                            rows="1"
+                            placeholder="描述您的评分偏好..."
+                            oninput="autoGrow(this); toggleSend()"
+                        ></textarea>
+                    </div>
+                    <button class="send-btn disabled" id="sendBtn" onclick="sendMessage()">↑</button>
+                </div>
+                <div class="input-hint">例：偏严格，高分不超过13分，平均分10分左右</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ========== Page Navigation ==========
+        const pageAssignment = document.getElementById('page-assignment');
+        const pageAgent = document.getElementById('page-agent');
+
+        function openAgentPage() {
+            pageAssignment.classList.remove('page-active');
+            pageAssignment.classList.add('page-hidden-left');
+            pageAgent.classList.remove('page-hidden-right');
+            pageAgent.classList.add('page-active');
+        }
+
+        function closeAgentPage() {
+            pageAgent.classList.remove('page-active');
+            pageAgent.classList.add('page-hidden-right');
+            pageAssignment.classList.remove('page-hidden-left');
+            pageAssignment.classList.add('page-active');
+        }
+
+        // ========== Chat Logic ==========
+        const chatArea = document.getElementById('chatArea');
+        const inputField = document.getElementById('inputField');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function autoGrow(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+        }
+
+        function toggleSend() {
+            if (inputField.value.trim()) {
+                sendBtn.classList.remove('disabled');
+            } else {
+                sendBtn.classList.add('disabled');
+            }
+        }
+
+        function sendQuick(text) {
+            inputField.value = text;
+            toggleSend();
+            sendMessage();
+        }
+
+        function sendMessage() {
+            const text = inputField.value.trim();
+            if (!text) return;
+
+            // User bubble
+            const userMsg = document.createElement('div');
+            userMsg.className = 'msg-user fade-in';
+            userMsg.innerHTML = `<div class="msg-bubble-user">${escapeHtml(text)}</div>`;
+            chatArea.appendChild(userMsg);
+
+            inputField.value = '';
+            inputField.style.height = 'auto';
+            toggleSend();
+            scrollToBottom();
+
+            // Typing
+            const typingEl = document.createElement('div');
+            typingEl.className = 'typing fade-in';
+            typingEl.innerHTML = `
+                <div class="msg-avatar">🤖</div>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            chatArea.appendChild(typingEl);
+            scrollToBottom();
+
+            setTimeout(() => {
+                typingEl.remove();
+                showAgentResponse(text);
+                scrollToBottom();
+            }, 1500);
+        }
+
+        function showAgentResponse(userText) {
+            const parsed = parseInput(userText);
+            const agentMsg = document.createElement('div');
+            agentMsg.className = 'msg-agent fade-in';
+
+            let resultRows = parsed.items.map(item =>
+                `<div class="result-row">
+                    <span class="result-label">${item.label}</span>
+                    <span class="result-value ${item.highlight ? 'highlight' : ''}">${item.value}</span>
+                </div>`
+            ).join('<div class="result-divider"></div>');
+
+            agentMsg.innerHTML = `
+                <div class="msg-avatar">🤖</div>
+                <div>
+                    <div class="result-card">
+                        <div class="result-card-header">
+                            <div class="result-check">✓</div>
+                            <div class="result-card-title">已理解，将按以下偏好调整评分</div>
+                        </div>
+                        <div class="result-card-body">
+                            <div class="result-items">${resultRows}</div>
+                        </div>
+                        <div class="result-card-footer">
+                            <button class="btn btn-ghost" onclick="resetConversation()">重新描述</button>
+                            <button class="btn btn-agent" onclick="applyPreference()">确认应用</button>
+                        </div>
+                    </div>
+                    <div class="msg-bubble-agent" style="margin-top: var(--space-2); border-radius: var(--radius-2xl);">
+                        <div class="msg-text">
+                            ${parsed.summary}<br><br>
+                            您可以继续补充其他评分偏好，或点击<strong>「确认应用」</strong>生效。
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatArea.appendChild(agentMsg);
+        }
+
+        function parseInput(text) {
+            const items = [];
+            let summary = '以上评分偏好将在本次批阅任务中自动生效。';
+
+            if (text.includes('严格')) {
+                items.push({ label: '评分风格', value: '偏严格', highlight: true });
+                summary = '收到，评分将整体偏严格。';
+            }
+            if (text.includes('宽松') || text.includes('鼓励')) {
+                items.push({ label: '评分风格', value: '偏宽松 · 鼓励为主', highlight: true });
+                summary = '收到，评分将以鼓励为主适当放宽。';
+            }
+            const highMatch = text.match(/高分[不]?[超]*[过]*([\d]+)/);
+            if (highMatch) {
+                items.push({ label: '高分上限', value: `≤ ${highMatch[1]} 分`, highlight: true });
+            }
+            const avgMatch = text.match(/平均分[控制在约大概]*([\d]+)/);
+            if (avgMatch) {
+                items.push({ label: '目标平均分', value: `${avgMatch[1]} 分 ± 1`, highlight: false });
+            }
+            if (text.includes('格式') || text.includes('应用文')) {
+                items.push({ label: '格式规则', value: '格式正确 → 加分', highlight: false });
+            }
+            if (text.includes('字数') || text.includes('词')) {
+                items.push({ label: '字数规则', value: '不足要求 → 扣分', highlight: false });
+            }
+            if (text.includes('语法')) {
+                items.push({ label: '语法权重', value: '加大语法扣分力度', highlight: false });
+            }
+            if (text.includes('词汇') || text.includes('高级')) {
+                items.push({ label: '词汇加分', value: '高级词汇 → 额外加分', highlight: false });
+            }
+            if (items.length === 0) {
+                items.push({ label: '自定义偏好', value: '已记录', highlight: false });
+                summary = '已记录您的偏好，AI 评分时将参考此描述进行调整。';
+            }
+            items.push({ label: '满分', value: '15 分', highlight: false });
+            items.push({ label: '生效范围', value: '本次批阅任务', highlight: false });
+
+            return { items, summary };
+        }
+
+        function applyPreference() {
+            // Update status on assignment page
+            const statusText = document.getElementById('agentStatusText');
+            statusText.textContent = '已配置';
+            statusText.classList.add('configured');
+
+            showToast('个性化评分已应用');
+            setTimeout(() => {
+                closeAgentPage();
+            }, 1200);
+        }
+
+        function resetConversation() {
+            const messages = chatArea.querySelectorAll('.msg-agent, .msg-user');
+            messages.forEach((msg, i) => { if (i > 0) msg.remove(); });
+            inputField.focus();
+        }
+
+        function scrollToBottom() {
+            requestAnimationFrame(() => { chatArea.scrollTop = chatArea.scrollHeight; });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        inputField.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

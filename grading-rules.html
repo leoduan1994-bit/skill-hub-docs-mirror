@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>布置英语作文 - 规则版</title>
+    <style>
+        :root {
+            --color-gray-50: #F9FAFB;
+            --color-gray-100: #F3F4F6;
+            --color-gray-200: #E5E7EB;
+            --color-gray-300: #D1D5DB;
+            --color-gray-400: #9CA3AF;
+            --color-gray-500: #6B7280;
+            --color-gray-600: #4B5563;
+            --color-gray-700: #374151;
+            --color-gray-800: #1F2937;
+            --color-gray-900: #111827;
+            --color-blue-50: #EFF6FF;
+            --color-blue-100: #DBEAFE;
+            --color-blue-500: #3B82F6;
+            --color-blue-600: #2563EB;
+            --color-blue-700: #1D4ED8;
+            --color-teal-50: #F0FDFA;
+            --color-teal-100: #CCFBF1;
+            --color-teal-400: #2DD4BF;
+            --color-teal-500: #14B8A6;
+            --color-teal-600: #0D9488;
+            --color-teal-700: #0F766E;
+            --color-green-50: #F0FDF4;
+            --color-green-100: #D1FAE5;
+            --color-green-500: #22C55E;
+            --color-green-600: #16A34A;
+            --color-red-50: #FEF2F2;
+            --color-red-500: #EF4444;
+            --color-red-600: #DC2626;
+
+            --color-background: var(--color-gray-50);
+            --color-foreground: var(--color-gray-900);
+            --color-card: white;
+            --color-border: var(--color-gray-200);
+            --color-muted-foreground: var(--color-gray-500);
+            --color-primary: var(--color-blue-600);
+            --color-rule: var(--color-teal-600);
+            --color-rule-light: var(--color-teal-50);
+            --color-success: var(--color-green-600);
+
+            --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+            --space-4: 1rem; --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem;
+
+            --font-size-xs: 0.75rem; --font-size-sm: 0.875rem; --font-size-base: 1rem;
+            --font-size-lg: 1.125rem; --font-size-xl: 1.25rem;
+            --font-weight-normal: 400; --font-weight-medium: 500;
+            --font-weight-semibold: 600; --font-weight-bold: 700;
+            --leading-normal: 1.5; --leading-tight: 1.25;
+            --radius-md: 0.375rem; --radius-lg: 0.5rem; --radius-xl: 0.75rem;
+            --radius-2xl: 1rem; --radius-full: 9999px;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-default: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --duration-fast: 150ms; --duration-normal: 200ms; --duration-slow: 300ms;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f0f5; color: var(--color-foreground);
+            line-height: var(--leading-normal); font-size: var(--font-size-base);
+            height: 100vh; overflow: hidden;
+        }
+        .app { height: 100vh; position: relative; overflow: hidden; }
+        @media (min-width: 640px) {
+            .app { max-width: 430px; margin: 0 auto; box-shadow: var(--shadow-md); }
+        }
+
+        /* Page Container */
+        .page {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column;
+            transition: transform var(--duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--color-background);
+        }
+        .page-hidden-right { transform: translateX(100%); }
+        .page-hidden-left { transform: translateX(-100%); }
+        .page-active { transform: translateX(0); }
+
+        /* Status Bar */
+        .status-bar {
+            background: linear-gradient(135deg, #e0f0f0 0%, #d8e8f8 100%);
+            padding: 12px var(--space-4) 6px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); flex-shrink: 0;
+        }
+        .status-time {
+            background: var(--color-foreground); color: white;
+            padding: 2px 10px; border-radius: var(--radius-full);
+            font-size: 15px; font-weight: var(--font-weight-bold);
+        }
+        .status-icons { display: flex; align-items: center; gap: 4px; }
+
+        /* Nav Bar */
+        .nav-bar {
+            background: white; display: flex; align-items: center;
+            justify-content: space-between; padding: 10px var(--space-4);
+            border-bottom: 1px solid var(--color-border); flex-shrink: 0;
+        }
+        .nav-back { font-size: 28px; color: var(--color-foreground); cursor: pointer; line-height: 1; }
+        .nav-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); }
+        .nav-title-swap { font-size: var(--font-size-sm); color: var(--color-muted-foreground); }
+        .nav-right { font-size: var(--font-size-sm); color: var(--color-primary); cursor: pointer; }
+
+        /* Assignment Scroll */
+        .assignment-scroll { flex: 1; overflow-y: auto; padding-bottom: var(--space-4); }
+        .homework-name {
+            padding: var(--space-4); background: white;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .homework-name-label { font-size: var(--font-size-xs); color: var(--color-muted-foreground); margin-bottom: 2px; }
+        .homework-name-value { font-size: var(--font-size-base); font-weight: var(--font-weight-medium); }
+        .form-section { background: white; margin-top: 10px; }
+        .form-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px var(--space-4); border-bottom: 1px solid var(--color-gray-100);
+        }
+        .form-row:last-child { border-bottom: none; }
+        .form-label { font-size: var(--font-size-base); color: var(--color-foreground); }
+        .form-value { font-size: var(--font-size-sm); color: var(--color-muted-foreground); }
+        .arrow { font-size: 18px; margin-left: 4px; }
+        .textarea-section { padding: var(--space-4); background: white; margin-top: 10px; }
+        .textarea-box {
+            border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+            padding: var(--space-3); min-height: 80px;
+        }
+        .textarea-placeholder { color: var(--color-gray-400); font-size: var(--font-size-sm); }
+        .textarea-count { text-align: right; font-size: var(--font-size-xs); color: var(--color-gray-400); margin-top: 4px; }
+        .switch-track {
+            width: 44px; height: 26px; background: var(--color-gray-300);
+            border-radius: 13px; position: relative; cursor: pointer; transition: background var(--duration-normal);
+        }
+        .switch-track.on { background: var(--color-primary); }
+        .switch-thumb {
+            width: 22px; height: 22px; background: white; border-radius: 50%;
+            position: absolute; top: 2px; left: 2px; transition: transform var(--duration-normal);
+            box-shadow: var(--shadow-sm);
+        }
+        .switch-track.on .switch-thumb { transform: translateX(18px); }
+
+        /* Rule Entry (蓝绿色调) */
+        .rule-entry {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px var(--space-4); background: white; cursor: pointer;
+            border-top: 1px solid var(--color-gray-100);
+        }
+        .rule-entry-left { display: flex; align-items: center; gap: var(--space-3); }
+        .rule-entry-icon {
+            width: 36px; height: 36px; border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, var(--color-teal-500), var(--color-blue-500));
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .rule-entry-title { font-size: var(--font-size-base); font-weight: var(--font-weight-medium); }
+        .rule-entry-desc { font-size: var(--font-size-xs); color: var(--color-muted-foreground); margin-top: 1px; }
+        .rule-entry-right { display: flex; align-items: center; gap: var(--space-2); }
+        .rule-status-text { font-size: var(--font-size-xs); color: var(--color-muted-foreground); }
+        .rule-status-text.configured { color: var(--color-success); font-weight: var(--font-weight-medium); }
+
+        /* Bottom */
+        .bottom-area {
+            background: white; padding: var(--space-3) var(--space-4) var(--space-6);
+            border-top: 1px solid var(--color-border); flex-shrink: 0;
+        }
+        .bottom-hint { font-size: var(--font-size-xs); color: var(--color-muted-foreground); text-align: center; margin-bottom: var(--space-2); }
+        .bottom-btn {
+            width: 100%; padding: 12px; background: var(--color-primary); color: white;
+            border: none; border-radius: var(--radius-xl); font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold); cursor: pointer;
+        }
+
+        /* ===== Page 2: Rule Config ===== */
+        .rule-header {
+            display: flex; align-items: center; gap: var(--space-3);
+            padding: 12px var(--space-4); background: white;
+            border-bottom: 1px solid var(--color-border); flex-shrink: 0;
+        }
+        .rule-header-back { font-size: 28px; cursor: pointer; line-height: 1; color: var(--color-foreground); }
+        .rule-header-icon {
+            width: 32px; height: 32px; border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, var(--color-teal-500), var(--color-blue-500));
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .rule-header-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); flex: 1; }
+
+        .rule-scroll { flex: 1; overflow-y: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+
+        .rule-card {
+            background: white; border-radius: var(--radius-xl); padding: var(--space-4);
+            box-shadow: var(--shadow-sm); border: 1px solid var(--color-border);
+        }
+        .rule-card-title {
+            font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+            color: var(--color-gray-700); margin-bottom: var(--space-3);
+            display: flex; align-items: center; gap: var(--space-2);
+        }
+        .rule-card-title-icon { font-size: var(--font-size-base); }
+
+        /* Score Range Inputs */
+        .score-range-row { display: flex; gap: var(--space-4); }
+        .score-input-group { flex: 1; }
+        .score-input-label { font-size: var(--font-size-xs); color: var(--color-muted-foreground); margin-bottom: 4px; }
+        .score-input {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg); font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold); text-align: center;
+            outline: none; transition: border-color var(--duration-fast);
+        }
+        .score-input:focus { border-color: var(--color-rule); }
+        .score-input-unit { font-size: var(--font-size-xs); color: var(--color-muted-foreground); text-align: center; margin-top: 2px; }
+
+        /* Distribution Table */
+        .dist-table { width: 100%; }
+        .dist-header {
+            display: grid; grid-template-columns: 1fr 1fr 36px; gap: var(--space-2);
+            padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-gray-100);
+            margin-bottom: var(--space-2);
+        }
+        .dist-header span {
+            font-size: var(--font-size-xs); color: var(--color-muted-foreground);
+            font-weight: var(--font-weight-medium);
+        }
+        .dist-row {
+            display: grid; grid-template-columns: 1fr 1fr 36px; gap: var(--space-2);
+            align-items: center; margin-bottom: var(--space-2);
+        }
+        .dist-range {
+            display: flex; align-items: center; gap: 4px;
+        }
+        .dist-input {
+            width: 100%; padding: 8px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-md); font-size: var(--font-size-sm);
+            text-align: center; outline: none; transition: border-color var(--duration-fast);
+        }
+        .dist-input:focus { border-color: var(--color-rule); }
+        .dist-input.range-input { width: 42%; }
+        .dist-range-sep { color: var(--color-gray-400); font-size: var(--font-size-sm); flex-shrink: 0; }
+        .dist-pct-wrap { position: relative; }
+        .dist-pct-input {
+            width: 100%; padding: 8px 20px 8px 8px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-md); font-size: var(--font-size-sm);
+            text-align: center; outline: none; transition: border-color var(--duration-fast);
+        }
+        .dist-pct-input:focus { border-color: var(--color-rule); }
+        .dist-pct-unit {
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            font-size: var(--font-size-xs); color: var(--color-gray-400); pointer-events: none;
+        }
+        .dist-del {
+            width: 28px; height: 28px; border: none; background: var(--color-gray-100);
+            border-radius: var(--radius-full); cursor: pointer; font-size: 16px;
+            color: var(--color-gray-500); display: flex; align-items: center; justify-content: center;
+            transition: background var(--duration-fast);
+        }
+        .dist-del:hover { background: var(--color-red-50); color: var(--color-red-500); }
+
+        .dist-add {
+            width: 100%; padding: 8px; border: 1px dashed var(--color-border);
+            border-radius: var(--radius-md); background: transparent;
+            color: var(--color-rule); font-size: var(--font-size-sm);
+            cursor: pointer; transition: background var(--duration-fast);
+            margin-top: var(--space-1);
+        }
+        .dist-add:hover { background: var(--color-rule-light); }
+
+        /* Total Row */
+        .dist-total {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-top: var(--space-3); border-top: 1px solid var(--color-gray-100);
+            margin-top: var(--space-2);
+        }
+        .dist-total-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-gray-700); }
+        .dist-total-value { font-size: var(--font-size-base); font-weight: var(--font-weight-bold); }
+        .dist-total-value.ok { color: var(--color-success); }
+        .dist-total-value.error { color: var(--color-red-500); }
+        .dist-total-hint { font-size: var(--font-size-xs); color: var(--color-red-500); margin-top: 4px; text-align: right; display: none; }
+        .dist-total-hint.show { display: block; }
+
+        /* Preview Card */
+        .preview-card {
+            background: var(--color-teal-50); border: 1px solid var(--color-teal-100);
+            border-radius: var(--radius-xl); padding: var(--space-4);
+        }
+        .preview-title {
+            font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+            color: var(--color-rule); margin-bottom: var(--space-3);
+            display: flex; align-items: center; gap: var(--space-2);
+        }
+        .preview-bar-wrap { display: flex; height: 28px; border-radius: var(--radius-md); overflow: hidden; }
+        .preview-bar-seg {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: var(--font-weight-bold); color: white;
+            min-width: 20px; transition: width var(--duration-slow);
+        }
+        .preview-legend { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+        .preview-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--color-gray-600); }
+        .preview-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+        /* Apply Footer */
+        .rule-footer {
+            padding: var(--space-3) var(--space-4) var(--space-6);
+            background: white; border-top: 1px solid var(--color-border); flex-shrink: 0;
+        }
+        .rule-apply-btn {
+            width: 100%; padding: 13px; border: none; border-radius: var(--radius-xl);
+            background: linear-gradient(135deg, var(--color-teal-500), var(--color-blue-500));
+            color: white; font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);
+            cursor: pointer; transition: opacity var(--duration-fast);
+        }
+        .rule-apply-btn:active { opacity: 0.85; }
+        .rule-apply-btn:disabled { background: var(--color-gray-300); cursor: not-allowed; }
+
+        .fade-in { animation: fadeIn var(--duration-slow) ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); color: white; padding: 10px 24px;
+            border-radius: var(--radius-lg); font-size: var(--font-size-sm);
+            z-index: 2000; display: none;
+        }
+        .toast.show { display: block; animation: fadeIn var(--duration-fast); }
+    </style>
+</head>
+<body>
+    <div class="app">
+
+        <!-- ==================== PAGE 1: Assignment ==================== -->
+        <div class="page page-active" id="page-assignment">
+            <div class="status-bar">
+                <span class="status-time">10:47</span>
+                <span class="status-icons">.ill 4G <span style="background:#111;color:#4ade80;padding:1px 4px;border-radius:4px;font-size:11px;">64</span></span>
+            </div>
+            <div class="nav-bar">
+                <span class="nav-back">&lsaquo;</span>
+                <span class="nav-title">英语/高二 <span class="nav-title-swap">&#8652;</span></span>
+                <span class="nav-right">历史记录</span>
+            </div>
+            <div class="assignment-scroll">
+                <div class="homework-name">
+                    <div class="homework-name-label">作业名称</div>
+                    <div class="homework-name-value">高二AI英语作文3月30号</div>
+                </div>
+                <div class="form-section">
+                    <div class="form-row">
+                        <span class="form-label" style="color: var(--color-primary);">作文题目</span>
+                        <span class="form-value">文本 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+                </div>
+                <div class="textarea-section">
+                    <div class="textarea-box"><div class="textarea-placeholder">请输入作文题目</div></div>
+                    <div class="textarea-count">0/6000</div>
+                </div>
+                <div class="form-section">
+                    <div class="form-row">
+                        <span class="form-label">题目展示在答题卡上</span>
+                        <div class="switch-track" onclick="this.classList.toggle('on')"><div class="switch-thumb"></div></div>
+                    </div>
+                    <div class="form-row">
+                        <span class="form-label">文体</span>
+                        <span class="form-value">应用文 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+                    <div class="form-row">
+                        <span class="form-label">词数</span>
+                        <span class="form-value">100-120 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+                    <div class="form-row">
+                        <span class="form-label">满分</span>
+                        <span class="form-value">15分 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+                    <div class="form-row">
+                        <span class="form-label">评分标准</span>
+                        <span class="form-value">标准 <span class="arrow">&rsaquo;</span></span>
+                    </div>
+                    <!-- ★ 个性化评分规则 Entry ★ -->
+                    <div class="rule-entry" onclick="openRulePage()">
+                        <div class="rule-entry-left">
+                            <div class="rule-entry-icon">📊</div>
+                            <div>
+                                <div class="rule-entry-title">个性化评分规则</div>
+                                <div class="rule-entry-desc">设置分数范围与分段占比</div>
+                            </div>
+                        </div>
+                        <div class="rule-entry-right">
+                            <span class="rule-status-text" id="ruleStatusText">未设置</span>
+                            <span class="form-value"><span class="arrow">&rsaquo;</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bottom-area">
+                <div class="bottom-hint">布置后可前往智能批阅机【AI作文】中创建批阅任务</div>
+                <button class="bottom-btn">答题卡设置</button>
+            </div>
+        </div>
+
+
+        <!-- ==================== PAGE 2: Rule Config ==================== -->
+        <div class="page page-hidden-right" id="page-rules">
+            <header class="rule-header">
+                <div class="rule-header-back" onclick="closeRulePage()">&#8249;</div>
+                <div class="rule-header-icon">📊</div>
+                <div class="rule-header-title">个性化评分规则</div>
+            </header>
+
+            <div class="rule-scroll">
+                <!-- Card 1: Score Range -->
+                <div class="rule-card fade-in">
+                    <div class="rule-card-title">
+                        <span class="rule-card-title-icon">🎯</span> 评分范围
+                    </div>
+                    <div class="score-range-row">
+                        <div class="score-input-group">
+                            <div class="score-input-label">最低分</div>
+                            <input type="number" class="score-input" id="minScore" value="0" min="0" max="150" oninput="onScoreChange()">
+                            <div class="score-input-unit">分</div>
+                        </div>
+                        <div class="score-input-group">
+                            <div class="score-input-label">最高分</div>
+                            <input type="number" class="score-input" id="maxScore" value="15" min="0" max="150" oninput="onScoreChange()">
+                            <div class="score-input-unit">分</div>
+                        </div>
+                        <div class="score-input-group">
+                            <div class="score-input-label">目标均分</div>
+                            <input type="number" class="score-input" id="avgScore" value="10" min="0" max="150" oninput="onScoreChange()">
+                            <div class="score-input-unit">分</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Distribution -->
+                <div class="rule-card fade-in">
+                    <div class="rule-card-title">
+                        <span class="rule-card-title-icon">📈</span> 分数段分布（选填）
+                    </div>
+                    <div class="rule-card-hint" style="font-size:12px;color:var(--color-muted-foreground);margin-bottom:var(--space-3);">只需设置您关注的分数段，无需覆盖所有区间</div>
+                    <div class="dist-table">
+                        <div class="dist-header">
+                            <span>分数段</span>
+                            <span>学生占比</span>
+                            <span></span>
+                        </div>
+                        <div id="distRows"></div>
+                        <button class="dist-add" onclick="addRow()">+ 添加分数段</button>
+                    </div>
+                    <div class="dist-total">
+                        <span class="dist-total-label">已设定占比合计</span>
+                        <span class="dist-total-value ok" id="totalPct">0%</span>
+                    </div>
+                    <div class="dist-total-hint" id="totalHint" style="display:none;"></div>
+                </div>
+
+                <!-- Preview -->
+                <div class="preview-card fade-in">
+                    <div class="preview-title">
+                        <span>👁</span> 分布预览
+                    </div>
+                    <div class="preview-bar-wrap" id="previewBar"></div>
+                    <div class="preview-legend" id="previewLegend"></div>
+                </div>
+            </div>
+
+            <div class="rule-footer">
+                <button class="rule-apply-btn" id="applyBtn" onclick="applyRules()">确认应用</button>
+            </div>
+        </div>
+
+    </div>
+    <div class="toast" id="toast"></div>
+
+
+    <script>
+        // ========== Navigation ==========
+        const pageAssignment = document.getElementById('page-assignment');
+        const pageRules = document.getElementById('page-rules');
+
+        function openRulePage() {
+            pageAssignment.classList.remove('page-active');
+            pageAssignment.classList.add('page-hidden-left');
+            pageRules.classList.remove('page-hidden-right');
+            pageRules.classList.add('page-active');
+        }
+        function closeRulePage() {
+            pageRules.classList.remove('page-active');
+            pageRules.classList.add('page-hidden-right');
+            pageAssignment.classList.remove('page-hidden-left');
+            pageAssignment.classList.add('page-active');
+        }
+
+        // ========== Distribution Data ==========
+        const SEG_COLORS = ['#0D9488','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899'];
+        let rows = [];
+
+        function renderRows() {
+            const container = document.getElementById('distRows');
+            if (rows.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:16px 0;color:var(--color-gray-400);font-size:13px;">点击下方按钮添加分数段</div>';
+            } else {
+                container.innerHTML = rows.map((r, i) => `
+                    <div class="dist-row">
+                        <div class="dist-range">
+                            <input type="number" class="dist-input range-input" value="${r.lo}" min="0" max="150"
+                                onchange="updateRow(${i},'lo',this.value)">
+                            <span class="dist-range-sep">~</span>
+                            <input type="number" class="dist-input range-input" value="${r.hi}" min="0" max="150"
+                                onchange="updateRow(${i},'hi',this.value)">
+                            <span style="font-size:12px;color:var(--color-gray-400);margin-left:2px;">分</span>
+                        </div>
+                        <div class="dist-pct-wrap">
+                            <input type="number" class="dist-pct-input" value="${r.pct}" min="0" max="100"
+                                onchange="updateRow(${i},'pct',this.value)">
+                            <span class="dist-pct-unit">%</span>
+                        </div>
+                        <button class="dist-del" onclick="delRow(${i})">✕</button>
+                    </div>
+                `).join('');
+            }
+            updateTotal();
+            updatePreview();
+        }
+
+        function updateRow(i, field, val) {
+            rows[i][field] = parseInt(val) || 0;
+            updateTotal();
+            updatePreview();
+        }
+
+        function addRow() {
+            const maxScore = parseInt(document.getElementById('maxScore').value) || 15;
+            rows.push({ lo: 0, hi: maxScore, pct: 20 });
+            renderRows();
+        }
+
+        function delRow(i) {
+            rows.splice(i, 1);
+            renderRows();
+        }
+
+        function updateTotal() {
+            const total = rows.reduce((s, r) => s + r.pct, 0);
+            const el = document.getElementById('totalPct');
+            const hint = document.getElementById('totalHint');
+            el.textContent = total > 0 ? total + '%' : '—';
+            if (total > 100) {
+                el.className = 'dist-total-value error';
+                hint.textContent = '占比合计超过 100%，请调整';
+                hint.style.display = 'block';
+            } else {
+                el.className = 'dist-total-value ok';
+                hint.style.display = 'none';
+            }
+            // 不再强制100%才能应用
+        }
+
+        function updatePreview() {
+            const bar = document.getElementById('previewBar');
+            const legend = document.getElementById('previewLegend');
+            bar.innerHTML = rows.map((r, i) => {
+                const w = Math.max(r.pct, 0);
+                return `<div class="preview-bar-seg" style="width:${w}%;background:${SEG_COLORS[i % SEG_COLORS.length]}">
+                    ${w >= 10 ? w + '%' : ''}
+                </div>`;
+            }).join('');
+            legend.innerHTML = rows.map((r, i) =>
+                `<div class="preview-legend-item">
+                    <div class="preview-legend-dot" style="background:${SEG_COLORS[i % SEG_COLORS.length]}"></div>
+                    ${r.lo}-${r.hi}分 ${r.pct}%
+                </div>`
+            ).join('');
+        }
+
+        function onScoreChange() {
+            // Auto-adjust hint, could also validate against rows
+        }
+
+        // ========== Apply ==========
+        function applyRules() {
+            const total = rows.reduce((s, r) => s + r.pct, 0);
+            if (total > 100) return;
+
+            const statusText = document.getElementById('ruleStatusText');
+            statusText.textContent = '已配置';
+            statusText.classList.add('configured');
+
+            showToast('评分规则已应用');
+            setTimeout(() => closeRulePage(), 1000);
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        // Init
+        renderRows();
+    </script>
+</body>
+</html>

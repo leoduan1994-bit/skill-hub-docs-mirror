@@ -13,26 +13,32 @@
 
 ## 快速开始
 
-需要 **Node.js 18+**（自带 `fetch`）。
+### 方式一：零安装体验（最省事）
+
+**直接双击打开 `public/index.html`**（用浏览器打开这个文件即可）。
+无需安装任何东西、无需联网，立刻进入「演示模式」——浏览器本地用
+Canvas + MediaRecorder 合成占位视频，完整体验「输入提示词/图片 → 进度 → 出片」全流程。
+
+> 演示模式产出的是占位效果，用于体验交互；要**真实 AI 生成**请用方式二。
+
+### 方式二：完整版（真实 AI 生成）
+
+需要 **Node.js 18+**（自带 `fetch`）。安装地址：<https://nodejs.org>（选 LTS）。
+
+- **Windows**：双击 `start.bat`
+- **macOS / Linux**：双击 `start.command`（首次被拦截就右键 → 打开）
+- **或命令行**：
 
 ```bash
 cd ai-video
-
-# 1) 配置（可选：不配也能跑演示模式）
-cp .env.example .env
-# 编辑 .env，填入 REPLICATE_API_TOKEN
-
-# 2) 启动
-node server.js
-# 或： npm start
+cp .env.example .env      # 可选：填入 REPLICATE_API_TOKEN（不填=演示模式）
+node server.js            # 或 npm start
 ```
 
-打开 <http://localhost:3000> 即可使用。
+启动后打开 <http://localhost:3000>：
 
 - 控制台显示「**演示模式**」→ 未配置 token，视频在浏览器本地合成。
 - 控制台显示「**已连接 Replicate**」→ 真实 AI 生成。
-
-> 也可以直接用浏览器打开 `public/index.html`（不启动后端），会以纯前端演示模式运行。
 
 ---
 

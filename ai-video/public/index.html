@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 视频生成 · 文字 / 图片生成视频</title>
+<style>
+:root {
+  --color-gray-50:#F9FAFB; --color-gray-100:#F3F4F6; --color-gray-200:#E5E7EB;
+  --color-gray-300:#D1D5DB; --color-gray-400:#9CA3AF; --color-gray-500:#6B7280;
+  --color-gray-600:#4B5563; --color-gray-700:#374151; --color-gray-800:#1F2937;
+  --color-gray-900:#111827;
+  --color-blue-500:#3B82F6; --color-blue-600:#2563EB;
+  --color-purple-50:#FAF5FF; --color-purple-500:#A855F7; --color-purple-600:#9333EA;
+  --color-green-500:#22C55E; --color-green-600:#16A34A;
+  --color-red-50:#FEF2F2; --color-red-500:#EF4444; --color-red-600:#DC2626;
+  --color-amber-50:#FFFBEB; --color-amber-500:#F59E0B; --color-amber-700:#B45309;
+
+  --bg:#0B0B12; --bg-soft:#12121d;
+  --card:rgba(255,255,255,0.04); --card-solid:#16161f;
+  --border:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.16);
+  --fg:#F5F5FA; --muted:#9CA3AF; --muted-2:#6B7280;
+  --primary:#7C5CFF; --primary-2:#C04CFF;
+  --accent-grad:linear-gradient(135deg,#7C5CFF 0%,#C04CFF 50%,#FF6FB5 100%);
+
+  --space-1:0.25rem; --space-2:0.5rem; --space-3:0.75rem; --space-4:1rem;
+  --space-5:1.25rem; --space-6:1.5rem; --space-8:2rem;
+  --radius-md:0.5rem; --radius-lg:0.75rem; --radius-xl:1rem; --radius-2xl:1.25rem; --radius-full:9999px;
+  --fs-xs:0.75rem; --fs-sm:0.875rem; --fs-base:1rem; --fs-lg:1.125rem; --fs-xl:1.25rem; --fs-2xl:1.5rem; --fs-3xl:1.875rem;
+  --shadow-lg:0 12px 32px -8px rgba(0,0,0,0.5);
+  --shadow-glow:0 8px 40px -6px rgba(124,92,255,0.45);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Roboto,sans-serif;
+  background:
+    radial-gradient(1100px 600px at 12% -8%, rgba(124,92,255,0.22), transparent 60%),
+    radial-gradient(900px 600px at 100% 0%, rgba(192,76,255,0.16), transparent 55%),
+    var(--bg);
+  color:var(--fg);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+.wrap { max-width:1120px; margin:0 auto; padding:var(--space-6) var(--space-5) var(--space-8); }
+
+/* ---------- Header ---------- */
+.site-header { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); margin-bottom:var(--space-6); flex-wrap:wrap; }
+.brand { display:flex; align-items:center; gap:var(--space-3); }
+.brand-logo {
+  width:42px; height:42px; border-radius:var(--radius-lg);
+  background:var(--accent-grad); display:grid; place-items:center; font-size:22px;
+  box-shadow:var(--shadow-glow); flex-shrink:0;
+}
+.brand-title { font-size:var(--fs-xl); font-weight:700; letter-spacing:.2px; }
+.brand-sub { font-size:var(--fs-xs); color:var(--muted); }
+.mode-badge {
+  display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
+  border-radius:var(--radius-full); font-size:var(--fs-xs); font-weight:600;
+  border:1px solid var(--border-strong); background:var(--card);
+}
+.mode-badge .dot { width:8px; height:8px; border-radius:50%; background:var(--color-amber-500); box-shadow:0 0 0 3px rgba(245,158,11,.2); }
+.mode-badge.live .dot { background:var(--color-green-500); box-shadow:0 0 0 3px rgba(34,197,94,.2); }
+
+/* ---------- Layout ---------- */
+.grid { display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr); gap:var(--space-5); align-items:start; }
+@media (max-width:860px){ .grid { grid-template-columns:1fr; } }
+
+.card {
+  background:var(--card-solid); border:1px solid var(--border);
+  border-radius:var(--radius-2xl); padding:var(--space-5);
+  box-shadow:var(--shadow-lg);
+}
+.panel-title { font-size:var(--fs-sm); font-weight:700; color:var(--fg); margin-bottom:var(--space-3); display:flex; align-items:center; gap:8px; }
+.panel-title .num { width:20px; height:20px; border-radius:6px; background:var(--card); border:1px solid var(--border-strong); display:grid; place-items:center; font-size:11px; color:var(--muted); }
+
+/* ---------- Tabs ---------- */
+.tabs { display:flex; gap:6px; background:var(--bg-soft); border:1px solid var(--border); padding:5px; border-radius:var(--radius-xl); margin-bottom:var(--space-5); }
+.tab { flex:1; text-align:center; padding:10px 8px; border-radius:var(--radius-lg); font-size:var(--fs-sm); font-weight:600; color:var(--muted); cursor:pointer; transition:all .2s; user-select:none; }
+.tab .ic { margin-right:6px; }
+.tab.active { background:var(--accent-grad); color:#fff; box-shadow:var(--shadow-glow); }
+
+/* ---------- Form bits ---------- */
+.field { margin-bottom:var(--space-5); }
+.label { display:block; font-size:var(--fs-sm); font-weight:600; margin-bottom:var(--space-2); }
+.label .hint { font-weight:400; color:var(--muted-2); font-size:var(--fs-xs); margin-left:6px; }
+
+select, input[type=text], textarea {
+  width:100%; background:var(--bg-soft); color:var(--fg);
+  border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:11px 12px; font-size:var(--fs-sm); font-family:inherit; outline:none; transition:border-color .15s,box-shadow .15s;
+}
+select:focus, input:focus, textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(124,92,255,.25); }
+textarea { resize:vertical; min-height:96px; line-height:1.55; }
+.model-desc { font-size:var(--fs-xs); color:var(--muted); margin-top:6px; }
+
+.ta-wrap { position:relative; }
+.ta-count { position:absolute; right:10px; bottom:8px; font-size:var(--fs-xs); color:var(--muted-2); pointer-events:none; }
+
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.chip { font-size:var(--fs-xs); padding:6px 10px; border-radius:var(--radius-full); background:var(--card); border:1px solid var(--border); color:var(--muted); cursor:pointer; transition:all .15s; }
+.chip:hover { border-color:var(--primary); color:var(--fg); }
+
+/* dropzone */
+.dropzone {
+  border:1.5px dashed var(--border-strong); border-radius:var(--radius-xl);
+  padding:var(--space-6); text-align:center; cursor:pointer; transition:all .2s; background:var(--bg-soft);
+}
+.dropzone:hover, .dropzone.drag { border-color:var(--primary); background:rgba(124,92,255,.08); }
+.dropzone .dz-ic { font-size:30px; }
+.dropzone .dz-main { font-size:var(--fs-sm); font-weight:600; margin-top:8px; }
+.dropzone .dz-sub { font-size:var(--fs-xs); color:var(--muted); margin-top:4px; }
+.preview { position:relative; border-radius:var(--radius-xl); overflow:hidden; border:1px solid var(--border); }
+.preview img { width:100%; display:block; max-height:260px; object-fit:contain; background:#000; }
+.preview .rm { position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:50%; background:rgba(0,0,0,.6); border:1px solid var(--border-strong); color:#fff; cursor:pointer; font-size:16px; line-height:1; display:grid; place-items:center; }
+
+/* control row */
+.ctrl-row { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); }
+.seg { display:flex; gap:6px; background:var(--bg-soft); border:1px solid var(--border); padding:4px; border-radius:var(--radius-lg); }
+.seg button { flex:1; background:transparent; border:none; color:var(--muted); padding:7px 4px; border-radius:8px; font-size:var(--fs-xs); font-weight:600; cursor:pointer; transition:all .15s; }
+.seg button.on { background:var(--primary); color:#fff; }
+
+/* generate button */
+.btn-gen {
+  width:100%; border:none; cursor:pointer; color:#fff; font-size:var(--fs-base); font-weight:700;
+  padding:14px; border-radius:var(--radius-xl); background:var(--accent-grad);
+  box-shadow:var(--shadow-glow); transition:transform .12s,filter .15s,opacity .15s; letter-spacing:.3px;
+}
+.btn-gen:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.06); }
+.btn-gen:active:not(:disabled) { transform:translateY(0); }
+.btn-gen:disabled { opacity:.55; cursor:not-allowed; }
+
+/* ---------- Result ---------- */
+.stage { position:relative; width:100%; border-radius:var(--radius-xl); overflow:hidden; background:#000; border:1px solid var(--border); }
+.stage.r16x9 { aspect-ratio:16/9; }
+.stage.r9x16 { aspect-ratio:9/16; max-width:340px; margin:0 auto; }
+.stage.r1x1 { aspect-ratio:1/1; max-width:480px; margin:0 auto; }
+.stage video { width:100%; height:100%; object-fit:contain; display:block; background:#000; }
+
+.placeholder { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:var(--space-6); color:var(--muted); gap:10px; }
+.placeholder .big { font-size:46px; opacity:.85; }
+.placeholder .t { font-size:var(--fs-sm); font-weight:600; color:var(--fg); }
+.placeholder .s { font-size:var(--fs-xs); max-width:340px; }
+
+/* progress overlay */
+.overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:var(--space-6); background:radial-gradient(600px 300px at 50% 30%, rgba(124,92,255,.18), rgba(0,0,0,.72)); text-align:center; }
+.spinner { width:54px; height:54px; border-radius:50%; border:4px solid rgba(255,255,255,.14); border-top-color:var(--primary-2); animation:spin .9s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.ov-status { font-size:var(--fs-sm); font-weight:600; }
+.ov-sub { font-size:var(--fs-xs); color:var(--muted); }
+.pbar { width:min(320px,80%); height:6px; border-radius:var(--radius-full); background:rgba(255,255,255,.12); overflow:hidden; }
+.pbar > i { display:block; height:100%; width:0%; background:var(--accent-grad); transition:width .4s ease; }
+.ov-log { font-size:11px; color:var(--muted-2); font-family:ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; max-width:90%; max-height:54px; overflow:hidden; }
+
+/* result actions */
+.result-meta { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); margin-top:var(--space-4); flex-wrap:wrap; }
+.tag-row { display:flex; flex-wrap:wrap; gap:6px; }
+.tag { font-size:11px; padding:4px 9px; border-radius:var(--radius-full); background:var(--card); border:1px solid var(--border); color:var(--muted); }
+.actions { display:flex; gap:8px; }
+.btn { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border-strong); background:var(--card); color:var(--fg); padding:9px 14px; border-radius:var(--radius-lg); font-size:var(--fs-sm); font-weight:600; cursor:pointer; transition:all .15s; }
+.btn:hover { border-color:var(--primary); }
+.btn.primary { background:var(--accent-grad); border:none; box-shadow:var(--shadow-glow); }
+
+/* error box */
+.errbox { margin-top:var(--space-4); background:var(--color-red-50); color:var(--color-red-600); border:1px solid #FCA5A5; border-radius:var(--radius-lg); padding:12px 14px; font-size:var(--fs-sm); display:none; }
+.errbox.show { display:block; }
+
+.demo-note { margin-top:var(--space-4); background:rgba(245,158,11,.10); border:1px solid rgba(245,158,11,.35); color:var(--color-amber-500); border-radius:var(--radius-lg); padding:10px 12px; font-size:var(--fs-xs); display:none; }
+.demo-note.show { display:block; }
+
+/* history */
+.history { margin-top:var(--space-5); }
+.history h3 { font-size:var(--fs-sm); font-weight:700; margin-bottom:var(--space-3); display:flex; align-items:center; gap:8px; }
+.hist-strip { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; }
+.hist-item { flex:0 0 auto; width:120px; cursor:pointer; }
+.hist-thumb { width:120px; height:72px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:#000; position:relative; }
+.hist-thumb video { width:100%; height:100%; object-fit:cover; }
+.hist-thumb .play { position:absolute; inset:0; display:grid; place-items:center; font-size:20px; color:#fff; text-shadow:0 1px 4px #000; pointer-events:none; }
+.hist-cap { font-size:11px; color:var(--muted); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hist-empty { font-size:var(--fs-xs); color:var(--muted-2); }
+
+.foot { text-align:center; margin-top:var(--space-8); color:var(--muted-2); font-size:var(--fs-xs); }
+.foot a { color:var(--muted); }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site-header">
+    <div class="brand">
+      <div class="brand-logo">🎬</div>
+      <div>
+        <div class="brand-title">AI 视频生成</div>
+        <div class="brand-sub">输入提示词或图片，一键生成视频</div>
+      </div>
+    </div>
+    <div id="modeBadge" class="mode-badge"><span class="dot"></span><span id="modeText">加载中…</span></div>
+  </header>
+
+  <div class="grid">
+    <!-- ============ 左侧：输入面板 ============ -->
+    <section class="card">
+      <div class="tabs">
+        <div class="tab active" data-mode="text" id="tabText"><span class="ic">✍️</span>文生视频</div>
+        <div class="tab" data-mode="image" id="tabImage"><span class="ic">🖼️</span>图生视频</div>
+      </div>
+
+      <!-- 模型 -->
+      <div class="field">
+        <label class="label">模型</label>
+        <select id="modelSel"></select>
+        <div class="model-desc" id="modelDesc"></div>
+      </div>
+
+      <!-- 图片上传（图生视频时显示） -->
+      <div class="field hidden" id="imageField">
+        <label class="label">首帧图片 <span class="hint">视频将由这张图动起来</span></label>
+        <div class="dropzone" id="dropzone">
+          <div class="dz-ic">📁</div>
+          <div class="dz-main">点击上传或拖拽图片到这里</div>
+          <div class="dz-sub">支持 JPG / PNG / WEBP，自动压缩</div>
+        </div>
+        <div class="preview hidden" id="preview">
+          <img id="previewImg" alt="preview">
+          <div class="rm" id="removeImg" title="移除">✕</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" class="hidden">
+      </div>
+
+      <!-- 提示词 -->
+      <div class="field">
+        <label class="label">提示词 <span class="hint">越具体越好：主体 / 动作 / 镜头 / 风格</span></label>
+        <div class="ta-wrap">
+          <textarea id="prompt" maxlength="2000" placeholder="例如：一只柯基在海边奔跑，金色夕阳，海浪拍岸，电影感运镜，4K"></textarea>
+          <div class="ta-count" id="taCount">0/2000</div>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <!-- 时长 / 画幅（按模型显示） -->
+      <div class="field hidden" id="ctrlField">
+        <div class="ctrl-row">
+          <div id="durWrap">
+            <label class="label">时长</label>
+            <div class="seg" id="durSeg">
+              <button data-v="5" class="on">5 秒</button>
+              <button data-v="10">10 秒</button>
+            </div>
+          </div>
+          <div id="arWrap">
+            <label class="label">画幅</label>
+            <div class="seg" id="arSeg">
+              <button data-v="16:9" class="on">16:9</button>
+              <button data-v="9:16">9:16</button>
+              <button data-v="1:1">1:1</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 负向提示（按模型显示） -->
+      <div class="field hidden" id="negField">
+        <label class="label">负向提示 <span class="hint">不想出现的内容，可留空</span></label>
+        <input type="text" id="negPrompt" placeholder="例如：模糊、变形、多余的手指、低画质">
+      </div>
+
+      <button class="btn-gen" id="genBtn">✨ 生成视频</button>
+    </section>
+
+    <!-- ============ 右侧：结果区 ============ -->
+    <section class="card">
+      <div class="panel-title"><span class="num">▶</span> 生成结果</div>
+
+      <div class="stage r16x9" id="stage">
+        <div class="placeholder" id="placeholder">
+          <div class="big">🎞️</div>
+          <div class="t">视频将显示在这里</div>
+          <div class="s">在左侧输入提示词（或上传一张图片），点击「生成视频」即可。</div>
+        </div>
+        <div class="overlay hidden" id="overlay">
+          <div class="spinner"></div>
+          <div class="ov-status" id="ovStatus">正在生成…</div>
+          <div class="ov-sub" id="ovSub">已用时 0s</div>
+          <div class="pbar"><i id="pbarFill"></i></div>
+          <div class="ov-log" id="ovLog"></div>
+        </div>
+        <video id="resultVideo" class="hidden" controls playsinline loop></video>
+      </div>
+
+      <div class="errbox" id="errbox"></div>
+      <div class="demo-note" id="demoNote">⚠️ 演示模式：当前未配置 API key，视频由浏览器本地合成（占位效果）。配置 Replicate token 后即为真实 AI 生成。</div>
+
+      <div class="result-meta hidden" id="resultMeta">
+        <div class="tag-row" id="tagRow"></div>
+        <div class="actions">
+          <button class="btn" id="regenBtn">↻ 再生成</button>
+          <button class="btn primary" id="downloadBtn">⬇ 下载</button>
+        </div>
+      </div>
+
+      <div class="history">
+        <h3>🕑 历史记录 <span class="hist-empty" id="histEmpty">（本次会话内）</span></h3>
+        <div class="hist-strip" id="histStrip"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="foot">
+    由 <a href="https://replicate.com" target="_blank" rel="noopener">Replicate</a> 提供生成能力 · 演示模式无需 API key
+  </div>
+</div>
+
+<canvas id="demoCanvas" class="hidden"></canvas>
+
+<script>
+"use strict";
+// ====================== 状态 ======================
+const state = {
+  config: null,
+  demo: true,
+  mode: 'text',          // text | image
+  models: [],
+  model: null,
+  imageDataUrl: null,
+  duration: 5,
+  aspectRatio: '16:9',
+  busy: false,
+  lastResultUrl: null,
+  lastWasDemo: false,
+};
+const EXAMPLES = [
+  '一只柯基在海边奔跑，金色夕阳，海浪拍岸，电影感运镜',
+  '赛博朋克城市夜景，霓虹灯反射在湿漉漉的街道，航拍俯冲',
+  '水墨风格的中国山水，云雾缭绕，镜头缓缓推进',
+  '宇航员在月球漫步，地球在背景中缓缓升起，史诗感',
+  '春日樱花飘落的庭院，阳光透过花瓣，慢镜头特写',
+];
+
+const $ = (id) => document.getElementById(id);
+
+// ====================== 初始化 ======================
+async function init() {
+  renderChips();
+  bindUI();
+  try {
+    const r = await fetch('/api/config');
+    if (!r.ok) throw new Error('bad');
+    state.config = await r.json();
+  } catch {
+    // 直接以 file:// 打开 或 无后端：退化为纯前端演示
+    state.config = { demo: true, defaultModel: 'demo/local', models: DEFAULT_MODELS };
+  }
+  state.demo = !!state.config.demo;
+  state.models = state.config.models && state.config.models.length ? state.config.models : DEFAULT_MODELS;
+  state.model = state.config.defaultModel && state.models.find(m => m.id === state.config.defaultModel)
+    ? state.config.defaultModel : state.models[0].id;
+  applyModeBadge();
+  renderModels();
+  applyModelControls();
+  if (state.demo) $('demoNote').classList.add('show');
+}
+
+// 后端不可达时的兜底模型列表（仅用于演示）
+const DEFAULT_MODELS = [
+  { id:'demo/cinematic', label:'演示 · 电影感', desc:'浏览器本地合成的占位视频', supportsImage:true, controls:['duration','aspectRatio'] },
+];
+
+function applyModeBadge() {
+  const b = $('modeBadge'), t = $('modeText');
+  if (state.demo) { b.classList.remove('live'); t.textContent = '演示模式'; }
+  else { b.classList.add('live'); t.textContent = '已连接 Replicate'; }
+}
+
+function renderChips() {
+  const box = $('chips');
+  box.innerHTML = '';
+  EXAMPLES.forEach(ex => {
+    const c = document.createElement('div');
+    c.className = 'chip';
+    c.textContent = ex.length > 16 ? ex.slice(0, 15) + '…' : ex;
+    c.title = ex;
+    c.onclick = () => { $('prompt').value = ex; updateCount(); };
+    box.appendChild(c);
+  });
+}
+
+function renderModels() {
+  const sel = $('modelSel');
+  sel.innerHTML = '';
+  const usable = state.mode === 'image' ? state.models.filter(m => m.supportsImage) : state.models;
+  (usable.length ? usable : state.models).forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.id; o.textContent = m.label;
+    sel.appendChild(o);
+  });
+  if (!usable.find(m => m.id === state.model)) state.model = (usable[0] || state.models[0]).id;
+  sel.value = state.model;
+  updateModelDesc();
+}
+
+function currentModel() { return state.models.find(m => m.id === state.model) || state.models[0]; }
+function updateModelDesc() {
+  const m = currentModel();
+  $('modelDesc').textContent = m && m.desc ? m.desc : '';
+}
+
+function applyModelControls() {
+  const m = currentModel();
+  const controls = (m && m.controls) || [];
+  const hasDur = controls.includes('duration');
+  const hasAr = controls.includes('aspectRatio');
+  const hasNeg = controls.includes('negativePrompt');
+  // 演示模式始终允许选时长/画幅（影响本地合成）
+  const showDur = hasDur || state.demo;
+  const showAr = hasAr || state.demo;
+  $('ctrlField').classList.toggle('hidden', !(showDur || showAr));
+  $('durWrap').classList.toggle('hidden', !showDur);
+  $('arWrap').classList.toggle('hidden', !showAr);
+  $('negField').classList.toggle('hidden', !hasNeg);
+}
+
+// ====================== 事件绑定 ======================
+function bindUI() {
+  $('tabText').onclick = () => switchMode('text');
+  $('tabImage').onclick = () => switchMode('image');
+
+  $('modelSel').onchange = (e) => { state.model = e.target.value; updateModelDesc(); applyModelControls(); };
+
+  $('prompt').addEventListener('input', updateCount);
+
+  // 上传
+  const dz = $('dropzone'), fi = $('fileInput');
+  dz.onclick = () => fi.click();
+  fi.onchange = () => { if (fi.files[0]) handleFile(fi.files[0]); };
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) handleFile(f);
+  });
+  $('removeImg').onclick = clearImage;
+
+  // 段控件
+  segBind('durSeg', v => { state.duration = parseInt(v, 10); });
+  segBind('arSeg', v => { state.aspectRatio = v; });
+
+  $('genBtn').onclick = onGenerate;
+  $('regenBtn').onclick = onGenerate;
+  $('downloadBtn').onclick = downloadCurrent;
+}
+
+function segBind(id, cb) {
+  const seg = $(id);
+  seg.querySelectorAll('button').forEach(btn => {
+    btn.onclick = () => {
+      seg.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      cb(btn.dataset.v);
+    };
+  });
+}
+
+function switchMode(mode) {
+  state.mode = mode;
+  $('tabText').classList.toggle('active', mode === 'text');
+  $('tabImage').classList.toggle('active', mode === 'image');
+  $('imageField').classList.toggle('hidden', mode !== 'image');
+  renderModels();
+  applyModelControls();
+}
+
+function updateCount() {
+  const v = $('prompt').value;
+  $('taCount').textContent = v.length + '/2000';
+}
+
+// ====================== 图片处理 ======================
+function handleFile(file) {
+  fileToScaledDataURL(file, 1024).then(dataUrl => {
+    state.imageDataUrl = dataUrl;
+    $('previewImg').src = dataUrl;
+    $('preview').classList.remove('hidden');
+    $('dropzone').classList.add('hidden');
+  }).catch(() => showError('图片读取失败，请换一张试试'));
+}
+function clearImage() {
+  state.imageDataUrl = null;
+  $('fileInput').value = '';
+  $('preview').classList.add('hidden');
+  $('dropzone').classList.remove('hidden');
+}
+function fileToScaledDataURL(file, max) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', 0.9));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ====================== 生成主流程 ======================
+async function onGenerate() {
+  if (state.busy) return;
+  const prompt = $('prompt').value.trim();
+  if (state.mode === 'image' && !state.imageDataUrl) return showError('请先上传一张图片');
+  if (state.mode === 'text' && !prompt) return showError('请输入提示词');
+  if (!prompt && !state.imageDataUrl) return showError('请至少提供提示词或一张图片');
+
+  hideError();
+  setBusy(true);
+  setStageRatio(state.aspectRatio);
+  showOverlay(true);
+  $('resultVideo').classList.add('hidden');
+  $('resultMeta').classList.add('hidden');
+  $('placeholder').classList.add('hidden');
+
+  const params = {
+    model: state.model,
+    prompt,
+    image: state.mode === 'image' ? state.imageDataUrl : null,
+    duration: state.duration,
+    aspectRatio: state.aspectRatio,
+    negativePrompt: ($('negPrompt').value || '').trim() || null,
+  };
+
+  try {
+    if (state.demo) {
+      await runDemo(params);
+    } else {
+      await runReal(params);
+    }
+  } catch (err) {
+    showOverlay(false);
+    showError(err.message || '生成失败，请重试');
+    if (!state.lastResultUrl) $('placeholder').classList.remove('hidden');
+  } finally {
+    setBusy(false);
+  }
+}
+
+function setBusy(b) {
+  state.busy = b;
+  $('genBtn').disabled = b;
+  $('genBtn').textContent = b ? '⏳ 生成中…' : '✨ 生成视频';
+}
+
+// ---------- 真实模式：调用后端 → Replicate ----------
+async function runReal(params) {
+  startTimer();
+  setProgress(6, '正在提交任务…', '已用时 0s');
+
+  const r = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || '提交失败');
+  const id = data.id;
+
+  const startedAt = Date.now();
+  const TIMEOUT_MS = 6 * 60 * 1000;
+  while (true) {
+    await sleep(2500);
+    const elapsed = Math.round((Date.now() - startedAt) / 1000);
+    if (Date.now() - startedAt > TIMEOUT_MS) throw new Error('生成超时（6 分钟），请稍后重试或更换模型');
+
+    let st;
+    try {
+      const sr = await fetch('/api/status/' + encodeURIComponent(id));
+      st = await sr.json();
+      if (!sr.ok) throw new Error(st.error || '查询失败');
+    } catch (e) { throw e; }
+
+    const pct = Math.min(94, 12 + elapsed * 1.6);
+    if (st.status === 'starting') setProgress(pct, '正在排队…', '已用时 ' + elapsed + 's', st.logs);
+    else if (st.status === 'processing') setProgress(pct, '正在生成视频…', '已用时 ' + elapsed + 's', st.logs);
+    else if (st.status === 'succeeded') {
+      if (!st.output) throw new Error('生成完成但未返回视频地址');
+      setProgress(100, '完成', '');
+      stopTimer();
+      await showResult(st.output, params, false);
+      return;
+    } else if (st.status === 'failed') {
+      throw new Error('生成失败：' + (st.error || '模型返回错误'));
+    } else if (st.status === 'canceled') {
+      throw new Error('任务已取消');
+    }
+  }
+}
+
+// ---------- 演示模式：浏览器本地用 canvas + MediaRecorder 合成 ----------
+async function runDemo(params) {
+  startTimer();
+  setProgress(8, '正在合成（演示）…', '已用时 0s');
+  if (!supportsRecorder()) {
+    throw new Error('当前浏览器不支持本地视频合成，请用最新版 Chrome / Edge，或配置 Replicate token 使用真实生成');
+  }
+  const seconds = Math.min(Math.max(params.duration || 4, 3), 8);
+  const blobUrl = await synthesizeVideo({
+    prompt: params.prompt,
+    image: params.image,
+    aspectRatio: params.aspectRatio,
+    seconds,
+    onProgress: (p) => setProgress(8 + p * 0.9, '正在合成（演示）…', '已用时 ' + elapsedSec() + 's'),
+  });
+  setProgress(100, '完成', '');
+  stopTimer();
+  await showResult(blobUrl, params, true);
+}
+
+// ====================== 演示视频合成 ======================
+function supportsRecorder() {
+  return typeof MediaRecorder !== 'undefined'
+    && document.createElement('canvas').captureStream
+    && pickMime() !== null;
+}
+function pickMime() {
+  const cands = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+  for (const m of cands) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch {} }
+  return null;
+}
+
+function synthesizeVideo({ prompt, image, aspectRatio, seconds, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const dims = { '16:9': [854, 480], '9:16': [480, 854], '1:1': [600, 600] }[aspectRatio] || [854, 480];
+    const canvas = $('demoCanvas');
+    canvas.width = dims[0]; canvas.height = dims[1];
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    // 粒子
+    const particles = Array.from({ length: 46 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 2.4 + 0.6, s: Math.random() * 0.5 + 0.15,
+      a: Math.random() * 0.5 + 0.2,
+    }));
+
+    let bgImg = null;
+    const startReady = () => {
+      const stream = canvas.captureStream(30);
+      const mime = pickMime();
+      let rec;
+      try { rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 }); }
+      catch (e) { return reject(new Error('无法启动录制：' + e.message)); }
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(chunks, { type: mime.split(';')[0] });
+        resolve(URL.createObjectURL(blob));
+      };
+      rec.onerror = (e) => reject(new Error('录制出错'));
+
+      const total = seconds * 1000;
+      const t0 = performance.now();
+      rec.start();
+
+      function frame(now) {
+        const t = now - t0;
+        const prog = Math.min(1, t / total);
+        drawScene(ctx, W, H, t / 1000, prog, bgImg, particles, prompt);
+        if (onProgress) onProgress(prog);
+        if (t < total) requestAnimationFrame(frame);
+        else { try { rec.stop(); } catch {} }
+      }
+      requestAnimationFrame(frame);
+    };
+
+    if (image) {
+      const im = new Image();
+      im.onload = () => { bgImg = im; startReady(); };
+      im.onerror = () => startReady();
+      im.src = image;
+    } else {
+      startReady();
+    }
+  });
+}
+
+function drawScene(ctx, W, H, time, prog, bgImg, particles, prompt) {
+  ctx.clearRect(0, 0, W, H);
+  if (bgImg) {
+    // Ken Burns：缓慢放大 + 轻微平移
+    const zoom = 1.04 + 0.12 * prog;
+    const dw = W * zoom, dh = H * zoom;
+    const ox = (dw - W) * (0.5 + 0.04 * Math.sin(time * 0.5));
+    const oy = (dh - H) * (0.5 + 0.04 * Math.cos(time * 0.4));
+    // cover 适配
+    const ir = bgImg.width / bgImg.height, cr = W / H;
+    let sw, sh, sx, sy;
+    if (ir > cr) { sh = bgImg.height; sw = sh * cr; sx = (bgImg.width - sw) / 2; sy = 0; }
+    else { sw = bgImg.width; sh = sw / cr; sx = 0; sy = (bgImg.height - sh) / 2; }
+    ctx.drawImage(bgImg, sx, sy, sw, sh, -ox, -oy, dw, dh);
+    const grd = ctx.createLinearGradient(0, H * 0.45, 0, H);
+    grd.addColorStop(0, 'rgba(0,0,0,0)');
+    grd.addColorStop(1, 'rgba(0,0,0,0.72)');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+  } else {
+    // 动态渐变背景
+    const h1 = (time * 14) % 360, h2 = (time * 14 + 80) % 360;
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, `hsl(${h1},70%,16%)`);
+    g.addColorStop(0.5, `hsl(${(h1 + 40) % 360},65%,12%)`);
+    g.addColorStop(1, `hsl(${h2},70%,18%)`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // 光晕球
+    for (let i = 0; i < 3; i++) {
+      const cx = W * (0.3 + 0.4 * Math.sin(time * (0.3 + i * 0.12) + i));
+      const cy = H * (0.4 + 0.3 * Math.cos(time * (0.25 + i * 0.1) + i * 2));
+      const rad = Math.min(W, H) * (0.28 + 0.05 * Math.sin(time + i));
+      const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      rg.addColorStop(0, `hsla(${(h1 + i * 60) % 360},90%,65%,0.22)`);
+      rg.addColorStop(1, 'hsla(0,0%,0%,0)');
+      ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // 粒子
+  particles.forEach(p => {
+    p.y -= p.s; if (p.y < -4) { p.y = H + 4; p.x = Math.random() * W; }
+    ctx.beginPath();
+    ctx.arc(p.x + Math.sin(time + p.y * 0.02) * 6, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${p.a * (0.6 + 0.4 * Math.sin(time * 2 + p.x))})`;
+    ctx.fill();
+  });
+
+  // 提示词字幕
+  if (prompt) {
+    const fade = Math.min(1, prog * 4);
+    const fs = Math.round(Math.min(W, H) * 0.052);
+    ctx.font = `600 ${fs}px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif`;
+    ctx.textBaseline = 'bottom';
+    const maxW = W * 0.86;
+    const lines = wrapText(ctx, prompt, maxW).slice(0, 3);
+    let y = H - fs * 0.9;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      ctx.fillStyle = `rgba(255,255,255,${fade})`;
+      ctx.fillText(lines[i], W * 0.07, y);
+      y -= fs * 1.32;
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // 水印
+  ctx.font = `600 ${Math.round(Math.min(W, H) * 0.03)}px -apple-system,sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('✦ AI 演示生成', W * 0.05, H * 0.05);
+
+  // 进度光条
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(0, H - 4, W, 4);
+  const grd2 = ctx.createLinearGradient(0, 0, W * prog, 0);
+  grd2.addColorStop(0, '#7C5CFF'); grd2.addColorStop(1, '#FF6FB5');
+  ctx.fillStyle = grd2; ctx.fillRect(0, H - 4, W * prog, 4);
+}
+
+function wrapText(ctx, text, maxW) {
+  // 中文按字符断行，英文按空格
+  const hasSpace = /\s/.test(text);
+  const lines = [];
+  if (hasSpace) {
+    let line = '';
+    for (const word of text.split(/\s+/)) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = word; }
+      else line = test;
+    }
+    if (line) lines.push(line);
+  } else {
+    let line = '';
+    for (const ch of text) {
+      if (ctx.measureText(line + ch).width > maxW && line) { lines.push(line); line = ch; }
+      else line += ch;
+    }
+    if (line) lines.push(line);
+  }
+  return lines;
+}
+
+// ====================== 结果展示 ======================
+async function showResult(url, params, isDemo) {
+  showOverlay(false);
+  state.lastResultUrl = url;
+  state.lastWasDemo = isDemo;
+  const v = $('resultVideo');
+  v.src = url;
+  v.classList.remove('hidden');
+  v.muted = true;
+  v.play().catch(() => {});
+  // tags
+  const m = currentModel();
+  const tags = [];
+  tags.push(params.mode === 'image' || params.image ? '图生视频' : '文生视频');
+  tags.push(isDemo ? '演示合成' : (m ? m.label : '真实生成'));
+  if (params.aspectRatio) tags.push(params.aspectRatio);
+  if (params.duration) tags.push(params.duration + 's');
+  $('tagRow').innerHTML = tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+  $('resultMeta').classList.remove('hidden');
+  addHistory(url, params, isDemo);
+}
+
+function setStageRatio(ar) {
+  const s = $('stage');
+  s.classList.remove('r16x9', 'r9x16', 'r1x1');
+  s.classList.add(ar === '9:16' ? 'r9x16' : ar === '1:1' ? 'r1x1' : 'r16x9');
+}
+
+// ====================== 进度 / 计时 ======================
+let timerId = null, timerStart = 0;
+function startTimer() { timerStart = Date.now(); }
+function elapsedSec() { return Math.round((Date.now() - timerStart) / 1000); }
+function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+
+function showOverlay(show) {
+  $('overlay').classList.toggle('hidden', !show);
+  if (show) { setProgress(0, '正在准备…', '已用时 0s'); $('ovLog').textContent = ''; }
+}
+function setProgress(pct, status, sub, log) {
+  $('pbarFill').style.width = Math.max(0, Math.min(100, pct)) + '%';
+  if (status != null) $('ovStatus').textContent = status;
+  if (sub != null) $('ovSub').textContent = sub;
+  if (log != null) $('ovLog').textContent = log || '';
+}
+
+// ====================== 历史 / 下载 ======================
+const history = [];
+function addHistory(url, params, isDemo) {
+  history.unshift({ url, params, isDemo, ts: Date.now() });
+  if (history.length > 12) history.pop();
+  renderHistory();
+}
+function renderHistory() {
+  const strip = $('histStrip');
+  $('histEmpty').style.display = history.length ? 'none' : '';
+  strip.innerHTML = '';
+  history.forEach((h, i) => {
+    const item = document.createElement('div');
+    item.className = 'hist-item';
+    const cap = (h.params.prompt || (h.params.image ? '图生视频' : '视频')).slice(0, 14);
+    item.innerHTML = `
+      <div class="hist-thumb">
+        <video src="${h.url}" muted preload="metadata"></video>
+        <div class="play">▶</div>
+      </div>
+      <div class="hist-cap">${escapeHtml(cap)}</div>`;
+    item.onclick = () => {
+      setStageRatio(h.params.aspectRatio || '16:9');
+      showResult(h.url, h.params, h.isDemo);
+      $('placeholder').classList.add('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    strip.appendChild(item);
+  });
+}
+
+async function downloadCurrent() {
+  const url = state.lastResultUrl;
+  if (!url) return;
+  const name = 'ai-video-' + Date.now() + (state.lastWasDemo ? '.webm' : '.mp4');
+  try {
+    const r = await fetch(url);
+    const b = await r.blob();
+    const u = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 4000);
+  } catch {
+    window.open(url, '_blank');
+  }
+}
+
+// ====================== 工具 ======================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function showError(msg) { const e = $('errbox'); e.textContent = '⚠️ ' + msg; e.classList.add('show'); }
+function hideError() { $('errbox').classList.remove('show'); }
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+// 计时器：每秒刷新已用时
+setInterval(() => {
+  if (state.busy && timerStart) {
+    const sub = $('ovSub');
+    if (sub && !sub.textContent.includes('完成')) sub.textContent = '已用时 ' + elapsedSec() + 's';
+  }
+}, 1000);
+
+init();
+</script>
+</body>
+</html>

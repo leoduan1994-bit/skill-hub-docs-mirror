@@ -1,0 +1,16 @@
+{
+  "name": "ai-video-generator",
+  "version": "1.0.0",
+  "description": "AI 视频生成工具：输入提示词或图片，调用 Replicate 生成视频（零依赖 Node 后端 + 单文件前端）",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["ai", "video", "text-to-video", "image-to-video", "replicate"],
+  "license": "MIT"
+}

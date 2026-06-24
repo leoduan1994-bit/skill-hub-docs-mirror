@@ -1,0 +1,15 @@
+# Copy this file to the OpenMontage checkout ROOT as `.dockerignore`
+# (i.e. `cp openmontage-webui/dockerignore.example .dockerignore`) so the Docker
+# build context stays small and fast. Everything excluded here is either
+# reinstalled in the image or not needed at runtime.
+
+.git
+**/node_modules
+**/__pycache__
+*.pyc
+projects/demos/renders
+projects/custom-works
+remotion-composer/public/uploads
+remotion-composer/out
+.env
+*.log

@@ -32,7 +32,20 @@ assistant in OpenMontage by design).
   - `ffmpeg` on PATH, Node.js 18+
 - Python 3.10+ and `flask` (`pip install flask`)
 
-## Install & run
+## Deploy to a public URL
+
+Want a fixed `https://…` link instead of running locally? This folder ships a
+[`Dockerfile`](./Dockerfile) and a step-by-step [`DEPLOY.md`](./DEPLOY.md) for
+Render / Railway / Fly.io / any Docker host. Quick local check from the
+OpenMontage root:
+
+```bash
+cp openmontage-webui/dockerignore.example .dockerignore
+docker build -f openmontage-webui/Dockerfile -t openmontage-webui .
+docker run --rm -p 8000:8000 openmontage-webui   # http://localhost:8000
+```
+
+## Install & run (local, no Docker)
 
 Place this `openmontage-webui/` folder at the **root of your OpenMontage
 checkout**, so the layout is `OpenMontage/openmontage-webui/app.py`. Then:

@@ -243,6 +243,11 @@ def _run_render(job_id: str, props_path: Path, output_path: Path) -> None:
     browser_exe = os.environ.get("REMOTION_BROWSER_EXECUTABLE")
     if browser_exe:
         cmd += ["--browser-executable", browser_exe]
+    # Cap parallel render tabs — set REMOTION_CONCURRENCY=1 on small/low-RAM hosts
+    # to avoid out-of-memory kills (slower, but reliable).
+    concurrency = os.environ.get("REMOTION_CONCURRENCY")
+    if concurrency:
+        cmd += ["--concurrency", concurrency]
     job["log"].append(f"$ {' '.join(cmd)}")
 
     try:

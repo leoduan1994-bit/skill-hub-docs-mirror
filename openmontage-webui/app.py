@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OpenMontage Render Control Panel — a small web UI for the zero-key demos.
+"""OpenMontage Render Control Panel — a small web UI for the Explainer composition.
 
 Drop this folder at the root of an OpenMontage checkout (so the layout is
 `OpenMontage/openmontage-webui/app.py`) and run:
@@ -10,12 +10,14 @@ Drop this folder at the root of an OpenMontage checkout (so the layout is
 Then open http://localhost:8000
 
 What it does:
-  * Lists the checked-in Remotion demos (the same ones `render_demo.py` ships).
-  * Lets you optionally edit a demo's props JSON before rendering.
-  * Renders via `npx remotion render ... --codec h264`, streaming the log.
-  * Previews and downloads the resulting MP4 in the browser.
+  * Demos      — render the checked-in zero-key Remotion demos.
+  * My Works   — create your own videos from scratch: start from a template,
+                 build scenes from a snippet palette, edit the props JSON,
+                 save, render, preview, and download.
+  * Templates  — full-work starters, per-scene snippets, and theme presets,
+                 all valid against the "Explainer" composition's schema.
 
-No API keys are required — these demos render from local Remotion components.
+No API keys are required — everything renders from local Remotion components.
 The first render may download a headless-Chrome shell via npx (one-time).
 """
 
@@ -31,14 +33,7 @@ import time
 import uuid
 from pathlib import Path
 
-from flask import (
-    Flask,
-    Response,
-    abort,
-    jsonify,
-    request,
-    send_file,
-)
+from flask import Flask, Response, abort, jsonify, request, send_file
 
 # --------------------------------------------------------------------------- #
 # Locate the OpenMontage checkout this UI is operating on.
@@ -54,7 +49,6 @@ def _find_root() -> Path:
     for candidate in (here.parent, *here.parents):
         if (candidate / "remotion-composer").is_dir():
             return candidate
-    # Fall back to the parent of this folder; errors surface clearly later.
     return here.parent
 
 
@@ -63,12 +57,114 @@ COMPOSER_DIR = ROOT_DIR / "remotion-composer"
 PROPS_DIR = COMPOSER_DIR / "public" / "demo-props"
 OUTPUT_DIR = ROOT_DIR / "projects" / "demos" / "renders"
 EDITED_PROPS_DIR = OUTPUT_DIR / "_webui_props"
+WORKS_DIR = ROOT_DIR / "projects" / "custom-works"  # user-created works live here
 
 DEMO_DESCRIPTIONS = {
     "world-in-numbers": "Global scale story with titles, stats, and charts",
     "code-to-screen": "Developer workflow explainer with comparison and KPI cards",
     "focusflow-pitch": "Startup-style pitch built only from Remotion components",
 }
+
+# Themes understood by the Explainer composition (props.theme).
+THEMES = [
+    "flat-motion-graphics",
+    "clean-professional",
+    "minimalist-diagram",
+    "anime-ghibli",
+]
+
+_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,59}$")
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_-]+", "-", name.strip()).strip("-").lower()
+
+
+# --------------------------------------------------------------------------- #
+# Template library — scene snippets + full-work starters.
+# Every `cut` here is valid against Explainer.tsx's schema (see SceneRenderer).
+# --------------------------------------------------------------------------- #
+
+SCENE_TEMPLATES = [
+    {"id": "hero_title", "label": "Hero title", "duration": 3.5,
+     "cut": {"type": "hero_title", "text": "Your Big Title",
+             "heroSubtitle": "A short supporting line", "backgroundColor": "#0F172A"}},
+    {"id": "text_card", "label": "Text card", "duration": 3.0,
+     "cut": {"type": "text_card", "text": "One clear idea on screen."}},
+    {"id": "callout", "label": "Callout box", "duration": 4.0,
+     "cut": {"type": "callout", "callout_type": "tip", "title": "Pro tip",
+             "text": "Something worth highlighting for the viewer."}},
+    {"id": "stat_card", "label": "Stat card", "duration": 3.0,
+     "cut": {"type": "stat_card", "stat": "92%", "subtitle": "of users agree"}},
+    {"id": "comparison", "label": "Comparison", "duration": 4.0,
+     "cut": {"type": "comparison", "title": "Before vs After",
+             "leftLabel": "Before", "leftValue": "3 days",
+             "rightLabel": "After", "rightValue": "2 hours"}},
+    {"id": "bar_chart", "label": "Bar chart", "duration": 4.0,
+     "cut": {"type": "bar_chart", "title": "Quarterly revenue", "showValues": True,
+             "chartData": [{"label": "Q1", "value": 40}, {"label": "Q2", "value": 55},
+                           {"label": "Q3", "value": 70}, {"label": "Q4", "value": 90}]}},
+    {"id": "line_chart", "label": "Line chart", "duration": 4.0,
+     "cut": {"type": "line_chart", "title": "Growth", "showGrid": True, "showMarkers": True,
+             "chartSeries": [{"label": "Users",
+                              "data": [{"x": 1, "y": 10}, {"x": 2, "y": 25},
+                                       {"x": 3, "y": 45}, {"x": 4, "y": 80}]}]}},
+    {"id": "pie_chart", "label": "Pie / donut", "duration": 4.0,
+     "cut": {"type": "pie_chart", "title": "Market share", "donut": True,
+             "centerLabel": "Total", "centerValue": "100%", "showLegend": True,
+             "chartData": [{"label": "A", "value": 45}, {"label": "B", "value": 30},
+                           {"label": "C", "value": 25}]}},
+    {"id": "kpi_grid", "label": "KPI grid", "duration": 3.5,
+     "cut": {"type": "kpi_grid", "title": "At a glance", "columns": 3,
+             "chartData": [{"label": "Revenue", "value": 1200000, "prefix": "$"},
+                           {"label": "Users", "value": 48000},
+                           {"label": "NPS", "value": 72}]}},
+    {"id": "progress_bar", "label": "Progress bar", "duration": 3.0,
+     "cut": {"type": "progress_bar", "title": "Completion", "progress": 0.75,
+             "progressLabel": "75% done"}},
+    {"id": "terminal_scene", "label": "Terminal", "duration": 5.0,
+     "cut": {"type": "terminal_scene", "terminalTitle": "bash", "prompt": "$",
+             "steps": [{"kind": "cmd", "text": "npm run build"},
+                       {"kind": "out", "text": "Build complete in 4.2s"},
+                       {"kind": "cmd", "text": "npm test"},
+                       {"kind": "out", "text": "All tests passed"}]}},
+]
+
+SCENE_BY_ID = {s["id"]: s for s in SCENE_TEMPLATES}
+
+
+def _timed(theme: str, scene_ids: list[str]) -> dict:
+    """Assemble a full props object from a list of scene-template ids, timed back-to-back."""
+    cuts, t = [], 0.0
+    for i, sid in enumerate(scene_ids):
+        tpl = SCENE_BY_ID[sid]
+        cut = {"id": f"{sid}-{i + 1}", "source": "", **json.loads(json.dumps(tpl["cut"]))}
+        cut["in_seconds"] = round(t, 2)
+        cut["out_seconds"] = round(t + tpl["duration"], 2)
+        cuts.append(cut)
+        t += tpl["duration"]
+    return {"theme": theme, "cuts": cuts}
+
+
+STARTER_TEMPLATES = [
+    {"id": "blank", "label": "Blank (one title)",
+     "description": "A single hero title — the smallest valid work to build on.",
+     "build": lambda: _timed("flat-motion-graphics", ["hero_title"])},
+    {"id": "explainer", "label": "Explainer",
+     "description": "Title → callout → bar chart → closing text.",
+     "build": lambda: _timed("flat-motion-graphics",
+                             ["hero_title", "callout", "bar_chart", "text_card"])},
+    {"id": "data-story", "label": "Data story",
+     "description": "Title → KPI grid → line chart → pie chart → stat.",
+     "build": lambda: _timed("clean-professional",
+                             ["hero_title", "kpi_grid", "line_chart", "pie_chart", "stat_card"])},
+    {"id": "product-pitch", "label": "Product pitch",
+     "description": "Title → comparison → progress → quote callout.",
+     "build": lambda: _timed("minimalist-diagram",
+                             ["hero_title", "comparison", "progress_bar", "callout"])},
+]
+
+STARTER_BY_ID = {s["id"]: s for s in STARTER_TEMPLATES}
 
 # --------------------------------------------------------------------------- #
 # Job tracking — one render at a time (Remotion renders are heavy).
@@ -77,7 +173,6 @@ DEMO_DESCRIPTIONS = {
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 _active_job: str | None = None
-
 _PROGRESS_RE = re.compile(r"(\d+)\s*/\s*(\d+)")
 
 
@@ -85,6 +180,12 @@ def discover_demos() -> dict[str, Path]:
     if not PROPS_DIR.exists():
         return {}
     return {p.stem: p for p in sorted(PROPS_DIR.glob("*.json"))}
+
+
+def discover_works() -> dict[str, Path]:
+    if not WORKS_DIR.exists():
+        return {}
+    return {p.stem: p for p in sorted(WORKS_DIR.glob("*.json"))}
 
 
 def _which(*names: str) -> str | None:
@@ -95,21 +196,25 @@ def _which(*names: str) -> str | None:
     return None
 
 
-def _run_render(job_id: str, demo: str, props_path: Path) -> None:
-    """Worker thread: run the Remotion render and stream output into the job."""
+def _release(job_id: str) -> None:
     global _active_job
+    with _jobs_lock:
+        if _active_job == job_id:
+            _active_job = None
+
+
+def _run_render(job_id: str, props_path: Path, output_path: Path) -> None:
+    """Worker thread: run the Remotion render and stream output into the job."""
     job = _jobs[job_id]
     npx = _which("npx.cmd", "npx", "npx.exe")
     if not npx:
         job["status"] = "error"
         job["error"] = "npx not found on PATH (install Node.js 18+)."
-        _active_job_release(job_id)
+        _release(job_id)
         return
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = OUTPUT_DIR / f"{demo}.mp4"
     job["output_name"] = output_path.name
-
     cmd = [
         npx, "remotion", "render", "src/index.tsx", "Explainer",
         str(output_path), "--props", str(props_path), "--codec", "h264",
@@ -123,27 +228,19 @@ def _run_render(job_id: str, demo: str, props_path: Path) -> None:
 
     try:
         proc = subprocess.Popen(
-            cmd,
-            cwd=COMPOSER_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
+            cmd, cwd=COMPOSER_DIR, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True, bufsize=1,
         )
-        job["_proc"] = proc
         for line in proc.stdout:  # type: ignore[union-attr]
             line = line.rstrip("\n")
             if not line:
                 continue
             job["log"].append(line)
-            del job["log"][:-400]  # keep the log bounded
+            del job["log"][:-400]
             m = _PROGRESS_RE.search(line)
-            if m:
-                done, total = int(m.group(1)), int(m.group(2))
-                if total:
-                    job["progress"] = max(job["progress"], min(99, int(done / total * 100)))
+            if m and int(m.group(2)):
+                job["progress"] = max(job["progress"], min(99, int(int(m.group(1)) / int(m.group(2)) * 100)))
         proc.wait()
-        job["returncode"] = proc.returncode
         if proc.returncode == 0 and output_path.exists():
             job["status"] = "done"
             job["progress"] = 100
@@ -152,20 +249,46 @@ def _run_render(job_id: str, demo: str, props_path: Path) -> None:
         else:
             job["status"] = "error"
             job["error"] = f"Render exited with code {proc.returncode}."
-    except Exception as exc:  # noqa: BLE001 - surface any failure to the UI
+    except Exception as exc:  # noqa: BLE001
         job["status"] = "error"
         job["error"] = str(exc)
         job["log"].append(f"[exception] {exc}")
     finally:
-        job.pop("_proc", None)
-        _active_job_release(job_id)
+        _release(job_id)
 
 
-def _active_job_release(job_id: str) -> None:
+def _launch(props_path: Path, output_path: Path, label: str):
+    """Create a job under the single-render lock and start it. Returns (job_id, None) or (None, (msg, code))."""
     global _active_job
     with _jobs_lock:
-        if _active_job == job_id:
-            _active_job = None
+        if _active_job is not None:
+            return None, ("A render is already in progress. Please wait.", 409)
+        job_id = uuid.uuid4().hex[:12]
+        _active_job = job_id
+        _jobs[job_id] = {
+            "id": job_id, "label": label, "status": "running", "progress": 0,
+            "log": [], "started": time.time(), "output_url": None,
+        }
+    threading.Thread(target=_run_render, args=(job_id, props_path, output_path), daemon=True).start()
+    return job_id, None
+
+
+def _resolve_props(base_path: Path, edited: str | None, tag: str) -> tuple[Path | None, tuple | None]:
+    """Return the props file to render: the edited JSON (written to a temp file) or the base file."""
+    if edited is not None and edited.strip():
+        try:
+            parsed = json.loads(edited)
+        except json.JSONDecodeError as exc:
+            return None, (f"Props is not valid JSON: {exc}", 400)
+        if not isinstance(parsed.get("cuts"), list) or not parsed["cuts"]:
+            return None, ("Props must define a non-empty 'cuts' array.", 400)
+        EDITED_PROPS_DIR.mkdir(parents=True, exist_ok=True)
+        path = EDITED_PROPS_DIR / f"{tag}.json"
+        path.write_text(json.dumps(parsed, indent=2), encoding="utf-8")
+        return path, None
+    if not base_path.exists():
+        return None, ("No props found to render.", 400)
+    return base_path, None
 
 
 # --------------------------------------------------------------------------- #
@@ -183,21 +306,13 @@ def index() -> Response:
 @app.get("/api/demos")
 def api_demos():
     demos = discover_demos()
-    if not demos:
-        return jsonify(
-            error=f"No demo props found in {PROPS_DIR}. Is this an OpenMontage checkout?",
-            root=str(ROOT_DIR),
-            demos=[],
-        ), 200
     out = [
-        {
-            "name": name,
-            "description": DEMO_DESCRIPTIONS.get(name, "Checked-in Remotion demo"),
-            "rendered": (OUTPUT_DIR / f"{name}.mp4").exists(),
-        }
-        for name in demos
+        {"name": n, "description": DEMO_DESCRIPTIONS.get(n, "Checked-in Remotion demo"),
+         "rendered": (OUTPUT_DIR / f"{n}.mp4").exists()}
+        for n in demos
     ]
-    return jsonify(root=str(ROOT_DIR), demos=out)
+    return jsonify(root=str(ROOT_DIR), demos=out,
+                   error=None if demos else f"No demo props in {PROPS_DIR}.")
 
 
 @app.get("/api/props/<demo>")
@@ -208,47 +323,107 @@ def api_props(demo: str):
     return Response(demos[demo].read_text(encoding="utf-8"), mimetype="application/json")
 
 
+@app.get("/api/templates")
+def api_templates():
+    return jsonify(
+        themes=THEMES,
+        scenes=[{"id": s["id"], "label": s["label"], "duration": s["duration"], "cut": s["cut"]}
+                for s in SCENE_TEMPLATES],
+        starters=[{"id": s["id"], "label": s["label"], "description": s["description"]}
+                  for s in STARTER_TEMPLATES],
+    )
+
+
+# ---- Custom works CRUD ---------------------------------------------------- #
+
+@app.get("/api/works")
+def api_works():
+    works = discover_works()
+    out = [{"name": n, "rendered": (OUTPUT_DIR / f"work-{n}.mp4").exists()} for n in works]
+    return jsonify(works=out, dir=str(WORKS_DIR))
+
+
+@app.post("/api/works")
+def api_create_work():
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    if not _NAME_RE.match(name):
+        return jsonify(error="Name must be 1-60 chars: letters, numbers, spaces, - or _."), 400
+    slug = _slug(name)
+    if not slug:
+        return jsonify(error="Name produced an empty identifier."), 400
+    WORKS_DIR.mkdir(parents=True, exist_ok=True)
+    path = WORKS_DIR / f"{slug}.json"
+    if path.exists():
+        return jsonify(error=f"A work named '{slug}' already exists."), 409
+    starter_id = payload.get("starter") or "blank"
+    starter = STARTER_BY_ID.get(starter_id) or STARTER_BY_ID["blank"]
+    props = starter["build"]()
+    path.write_text(json.dumps(props, indent=2), encoding="utf-8")
+    return jsonify(name=slug)
+
+
+@app.get("/api/works/<name>")
+def api_get_work(name: str):
+    works = discover_works()
+    if name not in works:
+        abort(404)
+    return Response(works[name].read_text(encoding="utf-8"), mimetype="application/json")
+
+
+@app.put("/api/works/<name>")
+def api_save_work(name: str):
+    works = discover_works()
+    if name not in works:
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    try:
+        parsed = json.loads(payload.get("props", ""))
+    except json.JSONDecodeError as exc:
+        return jsonify(error=f"Props is not valid JSON: {exc}"), 400
+    if not isinstance(parsed.get("cuts"), list) or not parsed["cuts"]:
+        return jsonify(error="Props must define a non-empty 'cuts' array."), 400
+    works[name].write_text(json.dumps(parsed, indent=2), encoding="utf-8")
+    return jsonify(ok=True)
+
+
+@app.delete("/api/works/<name>")
+def api_delete_work(name: str):
+    works = discover_works()
+    if name not in works:
+        abort(404)
+    works[name].unlink()
+    return jsonify(ok=True)
+
+
+# ---- Render (demos and works share this) ---------------------------------- #
+
 @app.post("/api/render")
 def api_render():
-    global _active_job
     payload = request.get_json(silent=True) or {}
-    demo = payload.get("demo")
-    demos = discover_demos()
-    if demo not in demos:
-        return jsonify(error=f"Unknown demo '{demo}'."), 400
-
-    # Resolve the props file: default checked-in, or user-edited JSON.
-    props_path = demos[demo]
+    kind = payload.get("kind", "demo")
+    name = payload.get("name") or payload.get("demo")  # 'demo' kept for back-compat
     edited = payload.get("props")
-    if edited is not None and edited.strip():
-        try:
-            parsed = json.loads(edited)
-        except json.JSONDecodeError as exc:
-            return jsonify(error=f"Props is not valid JSON: {exc}"), 400
-        if not isinstance(parsed.get("cuts"), list) or not parsed["cuts"]:
-            return jsonify(error="Props must define a non-empty 'cuts' array."), 400
-        EDITED_PROPS_DIR.mkdir(parents=True, exist_ok=True)
-        props_path = EDITED_PROPS_DIR / f"{demo}.json"
-        props_path.write_text(json.dumps(parsed, indent=2), encoding="utf-8")
 
-    with _jobs_lock:
-        if _active_job is not None:
-            return jsonify(error="A render is already in progress. Please wait."), 409
-        job_id = uuid.uuid4().hex[:12]
-        _active_job = job_id
-        _jobs[job_id] = {
-            "id": job_id,
-            "demo": demo,
-            "status": "running",
-            "progress": 0,
-            "log": [],
-            "started": time.time(),
-            "output_url": None,
-        }
+    if kind == "work":
+        works = discover_works()
+        if name not in works:
+            return jsonify(error=f"Unknown work '{name}'."), 400
+        base, output = works[name], OUTPUT_DIR / f"work-{name}.mp4"
+        tag = f"work-{name}"
+    else:
+        demos = discover_demos()
+        if name not in demos:
+            return jsonify(error=f"Unknown demo '{name}'."), 400
+        base, output = demos[name], OUTPUT_DIR / f"{name}.mp4"
+        tag = f"demo-{name}"
 
-    threading.Thread(
-        target=_run_render, args=(job_id, demo, props_path), daemon=True
-    ).start()
+    props_path, err = _resolve_props(base, edited, tag)
+    if err:
+        return jsonify(error=err[0]), err[1]
+    job_id, err = _launch(props_path, output, label=f"{kind}:{name}")
+    if err:
+        return jsonify(error=err[0]), err[1]
     return jsonify(job_id=job_id)
 
 
@@ -257,22 +432,14 @@ def api_job(job_id: str):
     job = _jobs.get(job_id)
     if not job:
         abort(404)
-    return jsonify(
-        {
-            "id": job["id"],
-            "demo": job["demo"],
-            "status": job["status"],
-            "progress": job["progress"],
-            "log": job["log"][-60:],
-            "error": job.get("error"),
-            "output_url": job.get("output_url"),
-            "size_mb": job.get("size_mb"),
-        }
-    )
+    return jsonify({
+        "id": job["id"], "label": job.get("label"), "status": job["status"],
+        "progress": job["progress"], "log": job["log"][-60:], "error": job.get("error"),
+        "output_url": job.get("output_url"), "size_mb": job.get("size_mb"),
+    })
 
 
 def _safe_output(name: str) -> Path:
-    # Only serve *.mp4 directly inside OUTPUT_DIR — no traversal.
     if not name.endswith(".mp4") or "/" in name or "\\" in name:
         abort(404)
     path = (OUTPUT_DIR / name).resolve()
@@ -283,7 +450,6 @@ def _safe_output(name: str) -> Path:
 
 @app.get("/video/<name>")
 def video(name: str):
-    # conditional=True gives Range support so the <video> tag can seek.
     return send_file(_safe_output(name), mimetype="video/mp4", conditional=True)
 
 
@@ -305,68 +471,120 @@ INDEX_HTML = r"""<!doctype html>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #0b1020; color: #e6ebf5;
-  }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
-  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: .2px; }
-  .sub { color: #8b97b3; margin: 0 0 24px; font-size: 13px; }
-  .card { background: #131a2e; border: 1px solid #243150; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1020; color: #e6ebf5; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 30px 20px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #8b97b3; margin: 0 0 20px; font-size: 13px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid #243150; }
+  .tab { padding: 9px 16px; cursor: pointer; color: #8b97b3; border-bottom: 2px solid transparent; font-weight: 600; font-size: 14px; }
+  .tab.active { color: #fff; border-bottom-color: #3b6fff; }
+  .card { background: #131a2e; border: 1px solid #243150; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
   label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #8b97b3; margin-bottom: 8px; }
-  select, textarea, button {
-    font: inherit; color: inherit; background: #0e1526; border: 1px solid #2c3a5e;
-    border-radius: 8px; padding: 10px 12px; width: 100%;
-  }
-  textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; resize: vertical; }
-  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  select, textarea, button, input[type=text] { font: inherit; color: inherit; background: #0e1526; border: 1px solid #2c3a5e; border-radius: 8px; padding: 10px 12px; width: 100%; }
+  textarea { min-height: 300px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; resize: vertical; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .row > * { flex: 1; }
   button.primary { background: #3b6fff; border-color: #3b6fff; color: #fff; font-weight: 600; cursor: pointer; flex: 0 0 auto; padding: 10px 22px; }
   button.primary:disabled { background: #2a3a63; border-color: #2a3a63; cursor: not-allowed; }
   button.ghost { background: transparent; border-color: #2c3a5e; cursor: pointer; flex: 0 0 auto; }
+  button.danger { background: transparent; border-color: #5a2030; color: #ff8a96; cursor: pointer; flex: 0 0 auto; }
   .desc { color: #8b97b3; font-size: 13px; margin-top: 8px; }
-  details { margin-top: 14px; }
-  summary { cursor: pointer; color: #9fb0d6; font-size: 13px; }
   .bar { height: 8px; background: #0e1526; border-radius: 999px; overflow: hidden; border: 1px solid #2c3a5e; }
   .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,#3b6fff,#5ee0c0); transition: width .3s; }
   pre.log { background: #080d1a; border: 1px solid #1c2742; border-radius: 8px; padding: 12px; max-height: 220px; overflow: auto; font-size: 12px; color: #9fb6e0; white-space: pre-wrap; word-break: break-word; }
   video { width: 100%; border-radius: 8px; background: #000; margin-top: 4px; }
-  .status { font-size: 13px; margin: 10px 0; }
-  .status.err { color: #ff7a85; }
-  .status.ok { color: #5ee0c0; }
+  .status { font-size: 13px; margin: 10px 0; } .status.err { color: #ff7a85; } .status.ok { color: #5ee0c0; }
   .pill { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:#1c2742; color:#9fb0d6; margin-left:8px; }
   a.dl { color:#5ee0c0; text-decoration:none; font-weight:600; }
-  .muted { color:#5f6c8c; font-size:12px; }
+  .muted { color:#5f6c8c; font-size:12px; margin:6px 0; }
+  .hint { color:#7c89ab; font-size:12px; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing:.5px; color:#8b97b3; margin: 0 0 10px; }
+  .sp { margin-top: 14px; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background:#1c2742; border:1px solid #2c3a5e; padding:10px 16px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>OpenMontage · Render Control Panel</h1>
-  <p class="sub" id="rootline">Zero-key Remotion demos — no API keys required.</p>
+  <p class="sub" id="rootline">Zero-key Remotion videos — no API keys required.</p>
 
-  <div class="card">
-    <label for="demo">Demo</label>
-    <div class="row">
-      <select id="demo"></select>
-      <button class="primary" id="render">▶ Render</button>
-    </div>
-    <div class="desc" id="desc"></div>
-
-    <details id="advanced">
-      <summary>Advanced — edit props JSON before rendering</summary>
-      <p class="muted">Edited props are saved per-demo and used for this render. Leave as-is to use the shipped demo.</p>
-      <textarea id="props" spellcheck="false"></textarea>
-      <div class="row" style="margin-top:8px;">
-        <button class="ghost" id="reset" style="flex:0 0 auto;">Reset to shipped props</button>
-      </div>
-    </details>
+  <div class="tabs">
+    <div class="tab active" data-tab="demos">Demos</div>
+    <div class="tab" data-tab="works">My Works</div>
   </div>
 
+  <!-- ===================== DEMOS TAB ===================== -->
+  <div id="tab-demos">
+    <div class="card">
+      <label for="demo">Demo</label>
+      <div class="row">
+        <select id="demo"></select>
+        <button class="primary" id="renderDemo">▶ Render</button>
+      </div>
+      <div class="desc" id="demoDesc"></div>
+      <details class="sp" id="demoAdv">
+        <summary class="hint">Advanced — edit props JSON before rendering</summary>
+        <p class="muted">Edited props are used for this render only. Leave as-is for the shipped demo.</p>
+        <textarea id="demoProps" spellcheck="false"></textarea>
+        <div class="row sp"><button class="ghost" id="demoReset" style="flex:0 0 auto;">Reset to shipped props</button></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ===================== WORKS TAB ===================== -->
+  <div id="tab-works" style="display:none;">
+    <div class="card">
+      <h3>Create a new work</h3>
+      <div class="row">
+        <input type="text" id="newName" placeholder="Work name (e.g. my-launch-video)" />
+        <select id="starter" style="max-width:240px;"></select>
+        <button class="ghost" id="createWork" style="flex:0 0 auto;">Create</button>
+      </div>
+      <div class="desc" id="starterDesc"></div>
+    </div>
+
+    <div class="card" id="worksEditor" style="display:none;">
+      <h3>Edit work</h3>
+      <div class="row">
+        <select id="work"></select>
+        <button class="danger" id="deleteWork" style="flex:0 0 auto;">Delete</button>
+      </div>
+
+      <div class="row sp">
+        <div style="flex:1;">
+          <label for="theme">Theme</label>
+          <select id="theme"></select>
+        </div>
+        <div style="flex:2;">
+          <label for="scenePalette">Insert scene</label>
+          <div class="row">
+            <select id="scenePalette"></select>
+            <button class="ghost" id="insertScene" style="flex:0 0 auto;">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <label class="sp" for="workProps">Props JSON</label>
+      <textarea id="workProps" spellcheck="false"></textarea>
+      <p class="muted" id="workMeta"></p>
+      <div class="row sp">
+        <button class="ghost" id="saveWork" style="flex:0 0 auto;">💾 Save</button>
+        <button class="primary" id="renderWork" style="flex:0 0 auto;">▶ Render</button>
+      </div>
+    </div>
+
+    <div class="card" id="worksEmpty">
+      <p class="muted" style="margin:0;">No works yet — create one above to start building your own video.</p>
+    </div>
+  </div>
+
+  <!-- ===================== SHARED RUN + RESULT ===================== -->
   <div class="card" id="runcard" style="display:none;">
     <div class="status" id="status"></div>
     <div class="bar"><i id="barfill"></i></div>
-    <details style="margin-top:12px;" id="logwrap" open>
-      <summary>Render log</summary>
+    <details class="sp" id="logwrap" open>
+      <summary class="hint">Render log</summary>
       <pre class="log" id="log"></pre>
     </details>
   </div>
@@ -377,118 +595,157 @@ INDEX_HTML = r"""<!doctype html>
     <p style="margin:12px 0 0;"><a class="dl" id="dl" href="#">⬇ Download MP4</a></p>
   </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
 let pollTimer = null;
+let TEMPLATES = { themes: [], scenes: [], starters: [] };
 
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2200); }
+
+// ---- Tabs ----
+document.querySelectorAll(".tab").forEach((el) => {
+  el.onclick = () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    el.classList.add("active");
+    const tab = el.dataset.tab;
+    $("tab-demos").style.display = tab === "demos" ? "" : "none";
+    $("tab-works").style.display = tab === "works" ? "" : "none";
+  };
+});
+
+// ---- Demos ----
 async function loadDemos() {
-  const r = await fetch("/api/demos");
-  const d = await r.json();
+  const d = await (await fetch("/api/demos")).json();
   if (d.root) $("rootline").textContent = "Operating on: " + d.root;
-  const sel = $("demo");
-  sel.innerHTML = "";
-  if (!d.demos || !d.demos.length) {
-    $("desc").textContent = d.error || "No demos found.";
-    $("render").disabled = true;
-    return;
-  }
+  const sel = $("demo"); sel.innerHTML = "";
+  if (!d.demos || !d.demos.length) { $("demoDesc").textContent = d.error || "No demos."; $("renderDemo").disabled = true; return; }
   for (const dm of d.demos) {
     const o = document.createElement("option");
-    o.value = dm.name;
-    o.textContent = dm.name + (dm.rendered ? "  (rendered)" : "");
-    o.dataset.desc = dm.description;
-    sel.appendChild(o);
+    o.value = dm.name; o.textContent = dm.name + (dm.rendered ? "  (rendered)" : "");
+    o.dataset.desc = dm.description; sel.appendChild(o);
   }
-  sel.onchange = onDemoChange;
-  onDemoChange();
+  sel.onchange = onDemoChange; onDemoChange();
 }
-
 async function onDemoChange() {
-  const sel = $("demo");
-  const opt = sel.selectedOptions[0];
-  $("desc").textContent = opt ? opt.dataset.desc : "";
-  await loadProps(sel.value);
+  const opt = $("demo").selectedOptions[0];
+  $("demoDesc").textContent = opt ? opt.dataset.desc : "";
+  try { $("demoProps").value = await (await fetch("/api/props/" + encodeURIComponent($("demo").value))).text(); } catch (e) { $("demoProps").value = ""; }
+}
+$("demoReset").onclick = (e) => { e.preventDefault(); onDemoChange(); };
+$("renderDemo").onclick = () => startRender({ kind: "demo", name: $("demo").value, props: $("demoProps").value }, $("renderDemo"));
+
+// ---- Templates + Works ----
+async function loadTemplates() {
+  TEMPLATES = await (await fetch("/api/templates")).json();
+  const st = $("starter"); st.innerHTML = "";
+  for (const s of TEMPLATES.starters) { const o = document.createElement("option"); o.value = s.id; o.textContent = s.label; o.dataset.desc = s.description; st.appendChild(o); }
+  st.onchange = () => { const o = st.selectedOptions[0]; $("starterDesc").textContent = o ? o.dataset.desc : ""; };
+  st.onchange();
+  const th = $("theme"); th.innerHTML = "";
+  for (const t of TEMPLATES.themes) { const o = document.createElement("option"); o.value = t; o.textContent = t; th.appendChild(o); }
+  th.onchange = applyTheme;
+  const pal = $("scenePalette"); pal.innerHTML = "";
+  for (const s of TEMPLATES.scenes) { const o = document.createElement("option"); o.value = s.id; o.textContent = s.label + " (" + s.duration + "s)"; pal.appendChild(o); }
 }
 
-async function loadProps(name) {
-  try {
-    const r = await fetch("/api/props/" + encodeURIComponent(name));
-    $("props").value = await r.text();
-  } catch (e) { $("props").value = ""; }
+async function loadWorks(selectName) {
+  const d = await (await fetch("/api/works")).json();
+  const sel = $("work"); sel.innerHTML = "";
+  if (!d.works.length) { $("worksEditor").style.display = "none"; $("worksEmpty").style.display = ""; return; }
+  for (const w of d.works) { const o = document.createElement("option"); o.value = w.name; o.textContent = w.name + (w.rendered ? "  (rendered)" : ""); sel.appendChild(o); }
+  $("worksEmpty").style.display = "none"; $("worksEditor").style.display = "";
+  if (selectName) sel.value = selectName;
+  sel.onchange = loadWorkProps;
+  await loadWorkProps();
 }
-
-$("reset") && ($("reset").onclick = (e) => { e.preventDefault(); loadProps($("demo").value); });
-
-$("render").onclick = async () => {
-  const demo = $("demo").value;
-  const shipped = $("props").defaultValue;
-  let props = $("props").value;
-  // Only send edited props if the user actually changed something.
-  const body = { demo };
-  // Always send current textarea content; backend compares against shipped file.
-  // To avoid forcing a temp file when unchanged, send only if non-trivially edited.
-  body.props = props;
-
-  $("render").disabled = true;
-  $("result").style.display = "none";
-  $("runcard").style.display = "block";
-  setStatus("Starting render…", "");
-  setBar(2);
-  $("log").textContent = "";
-
-  let res;
-  try {
-    res = await (await fetch("/api/render", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })).json();
-  } catch (e) {
-    setStatus("Failed to start: " + e, "err"); $("render").disabled = false; return;
-  }
-  if (res.error) { setStatus(res.error, "err"); $("render").disabled = false; return; }
-  poll(res.job_id);
+async function loadWorkProps() {
+  const name = $("work").value;
+  try { $("workProps").value = await (await fetch("/api/works/" + encodeURIComponent(name))).text(); } catch (e) { $("workProps").value = ""; }
+  syncThemeFromProps(); updateMeta();
+}
+function currentProps() { try { return JSON.parse($("workProps").value); } catch (e) { return null; } }
+function updateMeta() {
+  const p = currentProps();
+  if (!p) { $("workMeta").textContent = "⚠ JSON is currently invalid — fix it before saving/rendering."; return; }
+  const cuts = (p.cuts || []); const dur = cuts.length ? Math.max(...cuts.map((c) => c.out_seconds || 0)) : 0;
+  $("workMeta").textContent = cuts.length + " scene(s), ~" + dur.toFixed(1) + "s · theme: " + (p.theme || "default");
+}
+function syncThemeFromProps() { const p = currentProps(); if (p && p.theme && TEMPLATES.themes.includes(p.theme)) $("theme").value = p.theme; }
+function applyTheme() {
+  const p = currentProps(); if (!p) { toast("Fix JSON first"); return; }
+  p.theme = $("theme").value; $("workProps").value = JSON.stringify(p, null, 2); updateMeta();
+}
+$("insertScene").onclick = () => {
+  const p = currentProps(); if (!p) { toast("Fix JSON first"); return; }
+  if (!Array.isArray(p.cuts)) p.cuts = [];
+  const tpl = TEMPLATES.scenes.find((s) => s.id === $("scenePalette").value);
+  const start = p.cuts.length ? Math.max(...p.cuts.map((c) => c.out_seconds || 0)) : 0;
+  const cut = Object.assign({ id: tpl.id + "-" + (p.cuts.length + 1), source: "" }, JSON.parse(JSON.stringify(tpl.cut)));
+  cut.in_seconds = Math.round(start * 100) / 100;
+  cut.out_seconds = Math.round((start + tpl.duration) * 100) / 100;
+  p.cuts.push(cut);
+  $("workProps").value = JSON.stringify(p, null, 2); updateMeta();
+  toast("Added " + tpl.label);
 };
+$("workProps").addEventListener("input", updateMeta);
 
-function poll(jobId) {
+$("createWork").onclick = async () => {
+  const name = $("newName").value.trim();
+  if (!name) { toast("Enter a name"); return; }
+  const r = await (await fetch("/api/works", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, starter: $("starter").value }) })).json();
+  if (r.error) { toast(r.error); return; }
+  $("newName").value = ""; toast("Created " + r.name); await loadWorks(r.name);
+};
+$("deleteWork").onclick = async () => {
+  const name = $("work").value;
+  if (!confirm("Delete work '" + name + "'? This removes its props file.")) return;
+  const r = await (await fetch("/api/works/" + encodeURIComponent(name), { method: "DELETE" })).json();
+  if (r.error) { toast(r.error); return; }
+  toast("Deleted " + name); await loadWorks();
+};
+$("saveWork").onclick = async () => {
+  const name = $("work").value;
+  const r = await (await fetch("/api/works/" + encodeURIComponent(name), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ props: $("workProps").value }) })).json();
+  if (r.error) { toast(r.error); return; }
+  toast("Saved " + name);
+};
+$("renderWork").onclick = () => startRender({ kind: "work", name: $("work").value, props: $("workProps").value }, $("renderWork"));
+
+// ---- Shared render flow ----
+async function startRender(body, btn) {
+  btn.disabled = true; $("result").style.display = "none"; $("runcard").style.display = "block";
+  setStatus("Starting render…", ""); setBar(2); $("log").textContent = "";
+  let res;
+  try { res = await (await fetch("/api/render", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json(); }
+  catch (e) { setStatus("Failed to start: " + e, "err"); btn.disabled = false; return; }
+  if (res.error) { setStatus(res.error, "err"); btn.disabled = false; return; }
+  poll(res.job_id, btn);
+}
+function poll(jobId, btn) {
   clearInterval(pollTimer);
   pollTimer = setInterval(async () => {
-    let j;
-    try { j = await (await fetch("/api/jobs/" + jobId)).json(); }
-    catch (e) { return; }
-    $("log").textContent = (j.log || []).join("\n");
-    $("log").scrollTop = $("log").scrollHeight;
+    let j; try { j = await (await fetch("/api/jobs/" + jobId)).json(); } catch (e) { return; }
+    $("log").textContent = (j.log || []).join("\n"); $("log").scrollTop = $("log").scrollHeight;
     setBar(j.progress || 0);
-    if (j.status === "running") {
-      setStatus("Rendering " + j.demo + " — " + (j.progress || 0) + "%", "");
-    } else if (j.status === "done") {
-      clearInterval(pollTimer);
-      setStatus("Done — " + j.demo, "ok");
-      setBar(100);
-      $("render").disabled = false;
-      showResult(j);
-    } else if (j.status === "error") {
-      clearInterval(pollTimer);
-      setStatus("Error: " + (j.error || "render failed"), "err");
-      $("render").disabled = false;
-    }
+    if (j.status === "running") { setStatus("Rendering " + (j.label || "") + " — " + (j.progress || 0) + "%", ""); }
+    else if (j.status === "done") { clearInterval(pollTimer); setStatus("Done — " + (j.label || ""), "ok"); setBar(100); btn.disabled = false; showResult(j); refreshLists(); }
+    else if (j.status === "error") { clearInterval(pollTimer); setStatus("Error: " + (j.error || "render failed"), "err"); btn.disabled = false; }
   }, 1000);
 }
-
 function showResult(j) {
   $("result").style.display = "block";
   $("size").textContent = j.size_mb ? j.size_mb + " MB" : "";
-  const url = j.output_url + "?t=" + Date.now();
-  $("player").src = url;
+  $("player").src = j.output_url + "?t=" + Date.now();
   $("dl").href = j.output_url.replace("/video/", "/download/");
   $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
-
+function refreshLists() { loadDemos(); if ($("worksEditor").style.display !== "none") { const cur = $("work").value; loadWorks(cur); } }
 function setStatus(t, cls) { const s = $("status"); s.textContent = t; s.className = "status " + (cls || ""); }
 function setBar(p) { $("barfill").style.width = Math.max(0, Math.min(100, p)) + "%"; }
 
-loadDemos();
+(async function init() { await loadTemplates(); await loadDemos(); await loadWorks(); })();
 </script>
 </body>
 </html>"""
@@ -497,7 +754,8 @@ loadDemos();
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     host = os.environ.get("HOST", "127.0.0.1")
-    print(f"OpenMontage Render Control Panel")
+    print("OpenMontage Render Control Panel")
     print(f"  root:   {ROOT_DIR}")
+    print(f"  works:  {WORKS_DIR}")
     print(f"  open:   http://localhost:{port}")
     app.run(host=host, port=port, threaded=True)

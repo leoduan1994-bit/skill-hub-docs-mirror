@@ -1,9 +1,14 @@
 # OpenMontage — Render Control Panel (web UI)
 
-A small, self-contained web page for operating OpenMontage's **zero-key Remotion
-demos** directly from the browser: pick a demo, optionally tweak its props JSON,
-click **Render**, then preview and download the resulting MP4. **No API keys
-required** — these demos render from local Remotion components.
+A small, self-contained web page for operating OpenMontage's **Explainer**
+video composition directly from the browser — **no API keys required**, all
+rendering is from local Remotion components. Two tabs:
+
+- **Demos** — render the checked-in zero-key demos; optionally tweak their props
+  JSON before rendering.
+- **My Works** — build your **own** videos from scratch: create a work from a
+  starter template, add scenes from a snippet palette, switch theme, edit the
+  props JSON, **save**, **render**, preview, download — and **delete** when done.
 
 This is a thin control panel over the same render path as `render_demo.py`
 (`npx remotion render … --codec h264`). It does **not** run the full
@@ -46,17 +51,55 @@ Open <http://localhost:8000>.
 If the UI can't find your checkout, it auto-detects by walking up from this
 folder looking for `remotion-composer/`; override with `OPENMONTAGE_ROOT`.
 
-## What you can do
+## Demos tab
 
 - **Render a demo** — `world-in-numbers`, `code-to-screen`, `focusflow-pitch`.
 - **Edit props** — expand *Advanced* to edit the demo's props JSON (titles,
   stats, timings, colors) before rendering. Must keep a non-empty `cuts` array.
-- **Preview & download** — the finished MP4 plays inline and downloads from
-  `projects/demos/renders/<demo>.mp4`.
+- **Preview & download** — the finished MP4 plays inline.
+
+## My Works tab — build your own videos
+
+1. **Create** a work: give it a name and pick a **starter template**
+   (`blank`, `explainer`, `data-story`, `product-pitch`). It's saved as a props
+   file under `projects/custom-works/<name>.json`.
+2. **Add scenes** from the *Insert scene* palette — each click appends a ready
+   scene to the `cuts` array, auto-timed to start where the previous one ends.
+3. **Switch theme** (`flat-motion-graphics`, `clean-professional`,
+   `minimalist-diagram`, `anime-ghibli`) — sets `props.theme`.
+4. **Edit the props JSON** directly for fine control; the footer shows scene
+   count / duration / theme and warns if the JSON is invalid.
+5. **Save**, then **Render** → preview and download.
+6. **Delete** removes the work's props file.
+
+### Scene snippets available
+
+`hero_title`, `text_card`, `callout`, `stat_card`, `comparison`, `bar_chart`,
+`line_chart`, `pie_chart`, `kpi_grid`, `progress_bar`, `terminal_scene` — every
+snippet is valid against the Explainer composition's schema, so anything you
+assemble renders. (The composition also supports image/video/`anime_scene`/
+`screenshot_scene` scenes when you supply asset paths in `source`.)
+
+Composition duration is derived automatically from the last cut's
+`out_seconds` (+1s), so works can be any length.
+
+## API (for scripting)
+
+| Method & path            | Purpose                                  |
+|--------------------------|------------------------------------------|
+| `GET /api/demos`         | List built-in demos                      |
+| `GET /api/templates`     | Themes, scene snippets, starters         |
+| `GET/POST /api/works`    | List / create custom works               |
+| `GET/PUT/DELETE /api/works/<name>` | Read / save / delete a work    |
+| `POST /api/render`       | `{kind:"demo"\|"work", name, props?}`    |
+| `GET /api/jobs/<id>`     | Render status, log, progress             |
+| `GET /video/<f>` · `GET /download/<f>` | Stream (Range) / download MP4 |
 
 ## Notes
 
 - One render runs at a time (Remotion rendering is CPU-heavy); a second request
   while busy returns HTTP 409.
-- Edited props are saved to `projects/demos/renders/_webui_props/<demo>.json`.
-- Outputs land in `projects/demos/renders/` — the same path as `make demo`.
+- Demo outputs land in `projects/demos/renders/<demo>.mp4`; work outputs in
+  `projects/demos/renders/work-<name>.mp4`.
+- Render-time edits (not yet saved) go to
+  `projects/demos/renders/_webui_props/`.

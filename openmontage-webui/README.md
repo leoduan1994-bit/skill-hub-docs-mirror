@@ -10,6 +10,15 @@ rendering is from local Remotion components. Two tabs:
   starter template, add scenes from a snippet palette, switch theme, edit the
   props JSON, **save**, **render**, preview, download — and **delete** when done.
 
+Plus, on both tabs:
+
+- **Live preview** (no render) — play the current props in-browser via the
+  Remotion `<Player>`. The composition is bundled once with esbuild and updates
+  each time you click *Live preview*.
+- **Asset uploads** — upload audio / images / video and use them as a scene,
+  background, narration, or music. Files are stored in the composition's
+  `public/uploads/` so they work in both live preview and final render.
+
 This is a thin control panel over the same render path as `render_demo.py`
 (`npx remotion render … --codec h264`). It does **not** run the full
 natural-language → video agent pipeline (that layer is driven by an AI coding
@@ -83,6 +92,31 @@ assemble renders. (The composition also supports image/video/`anime_scene`/
 Composition duration is derived automatically from the last cut's
 `out_seconds` (+1s), so works can be any length.
 
+### Live preview (Remotion Player)
+
+Click **👁 Live preview** on either tab to play the current props in your
+browser — no render, no waiting. On first use the app bundles the `Explainer`
+composition + `@remotion/player` with the esbuild that ships in
+`remotion-composer/node_modules` (cached to
+`projects/demos/renders/_webui_preview/bundle.js`; force a rebuild with
+`/preview.bundle.js?rebuild=1`). If esbuild isn't found, run
+`cd remotion-composer && npm install`.
+
+### Uploading assets (audio / images / video)
+
+Open **Assets** in the *My Works* editor:
+
+- **Upload** an image, video, or audio file → saved to
+  `remotion-composer/public/uploads/<file>`.
+- For an image/video: **Add as scene** appends a media cut using it as `source`.
+- For audio: **Set music** / **Set narration** wires it into `audio.music.src` /
+  `audio.narration.src`.
+- **Copy** grabs the `uploads/<file>` path to paste anywhere in the props (e.g.
+  a cut's `backgroundImage` / `backgroundVideo`).
+
+Because uploads live under the composition's `public/`, the same path resolves
+in both the live preview and the final `npx remotion render`.
+
 ## API (for scripting)
 
 | Method & path            | Purpose                                  |
@@ -93,6 +127,9 @@ Composition duration is derived automatically from the last cut's
 | `GET/PUT/DELETE /api/works/<name>` | Read / save / delete a work    |
 | `POST /api/render`       | `{kind:"demo"\|"work", name, props?}`    |
 | `GET /api/jobs/<id>`     | Render status, log, progress             |
+| `GET /preview.bundle.js` | Browser bundle for the live `<Player>`   |
+| `GET/POST /api/assets` · `DELETE /api/assets/<f>` | List / upload / delete assets |
+| `GET /uploads/<f>`       | Serve an uploaded asset (for preview)    |
 | `GET /video/<f>` · `GET /download/<f>` | Stream (Range) / download MP4 |
 
 ## Notes

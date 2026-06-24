@@ -34,6 +34,7 @@ import uuid
 from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, request, send_file
+from werkzeug.utils import secure_filename
 
 # --------------------------------------------------------------------------- #
 # Locate the OpenMontage checkout this UI is operating on.
@@ -58,6 +59,24 @@ PROPS_DIR = COMPOSER_DIR / "public" / "demo-props"
 OUTPUT_DIR = ROOT_DIR / "projects" / "demos" / "renders"
 EDITED_PROPS_DIR = OUTPUT_DIR / "_webui_props"
 WORKS_DIR = ROOT_DIR / "projects" / "custom-works"  # user-created works live here
+UPLOADS_DIR = COMPOSER_DIR / "public" / "uploads"   # uploaded assets (served by staticFile)
+PREVIEW_DIR = OUTPUT_DIR / "_webui_preview"          # cached Remotion Player bundle
+
+# Uploadable asset kinds (extension -> kind).
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
+AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
+
+
+def _asset_kind(name: str) -> str | None:
+    ext = Path(name).suffix.lower()
+    if ext in IMAGE_EXTS:
+        return "image"
+    if ext in VIDEO_EXTS:
+        return "video"
+    if ext in AUDIO_EXTS:
+        return "audio"
+    return None
 
 DEMO_DESCRIPTIONS = {
     "world-in-numbers": "Global scale story with titles, stats, and charts",
@@ -292,10 +311,95 @@ def _resolve_props(base_path: Path, edited: str | None, tag: str) -> tuple[Path 
 
 
 # --------------------------------------------------------------------------- #
+# Live preview — bundle the Explainer composition + Remotion <Player> for the
+# browser with esbuild, so the page can play props live without a full render.
+# --------------------------------------------------------------------------- #
+
+_PREVIEW_ENTRY_TSX = r"""
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { Player } from "@remotion/player";
+import { Explainer } from "./src/Explainer";
+
+function computeDuration(props: any): number {
+  const cuts = props?.cuts || [];
+  if (!cuts.length) return 30 * 60;
+  const lastEnd = Math.max(...cuts.map((c: any) => c.out_seconds || 0));
+  return Math.ceil((lastEnd + 1) * 30);
+}
+let root: any = null;
+function mount(props: any) {
+  const el = document.getElementById("player-root");
+  if (!el) return;
+  if (!root) root = createRoot(el);
+  root.render(
+    React.createElement(Player as any, {
+      component: Explainer,
+      inputProps: props,
+      durationInFrames: computeDuration(props),
+      compositionWidth: 1920,
+      compositionHeight: 1080,
+      fps: 30,
+      style: { width: "100%", borderRadius: 8 },
+      controls: true,
+      acknowledgeRemotionLicense: true,
+    })
+  );
+}
+(window as any).OMPreview = { mount };
+window.addEventListener("message", (e: any) => {
+  if (e?.data?.type === "om-preview" && e.data.props) {
+    try { mount(e.data.props); } catch (err) { console.error(err); }
+  }
+});
+"""
+
+_preview_lock = threading.Lock()
+
+
+def _esbuild_bin() -> str | None:
+    for cand in (COMPOSER_DIR / "node_modules" / ".bin" / "esbuild",
+                 COMPOSER_DIR / "node_modules" / ".bin" / "esbuild.cmd"):
+        if cand.exists():
+            return str(cand)
+    return _which("esbuild")
+
+
+def build_preview_bundle(force: bool = False) -> tuple[Path | None, str | None]:
+    """Build (and cache) the browser bundle. Returns (bundle_path, error)."""
+    bundle = PREVIEW_DIR / "bundle.js"
+    with _preview_lock:
+        if bundle.exists() and not force:
+            return bundle, None
+        esbuild = _esbuild_bin()
+        if not esbuild:
+            return None, ("esbuild not found. Run `cd remotion-composer && npm install` "
+                          "so the live preview can be bundled.")
+        PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        entry = COMPOSER_DIR / ".om-preview-entry.tsx"
+        entry.write_text(_PREVIEW_ENTRY_TSX, encoding="utf-8")
+        try:
+            proc = subprocess.run(
+                [esbuild, entry.name, "--bundle", f"--outfile={bundle}",
+                 "--loader:.tsx=tsx", "--jsx=automatic", "--format=iife",
+                 "--define:process.env.NODE_ENV=\"production\"", "--log-level=warning"],
+                cwd=COMPOSER_DIR, capture_output=True, text=True, timeout=300,
+            )
+            if proc.returncode != 0:
+                return None, f"esbuild failed:\n{proc.stderr[-2000:]}"
+            return bundle, None
+        except Exception as exc:  # noqa: BLE001
+            return None, str(exc)
+        finally:
+            entry.unlink(missing_ok=True)
+
+
+# --------------------------------------------------------------------------- #
 # Flask app
 # --------------------------------------------------------------------------- #
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 256 * 1024 * 1024  # 256 MB upload cap
 
 
 @app.get("/")
@@ -439,6 +543,78 @@ def api_job(job_id: str):
     })
 
 
+# ---- Live preview bundle -------------------------------------------------- #
+
+@app.get("/preview.bundle.js")
+def preview_bundle():
+    bundle, err = build_preview_bundle(force=request.args.get("rebuild") == "1")
+    if err:
+        # 200 with a console.error so a <script> load surfaces the reason in-page.
+        return Response(f"console.error({json.dumps('OpenMontage live preview unavailable: ' + err)});",
+                        mimetype="application/javascript"), 200
+    return send_file(bundle, mimetype="application/javascript", conditional=True)
+
+
+# ---- Uploadable assets ---------------------------------------------------- #
+
+@app.get("/uploads/<name>")
+def uploads(name: str):
+    if "/" in name or "\\" in name:
+        abort(404)
+    path = (UPLOADS_DIR / name).resolve()
+    if not str(path).startswith(str(UPLOADS_DIR.resolve())) or not path.exists():
+        abort(404)
+    return send_file(path, conditional=True)
+
+
+def _list_assets() -> list[dict]:
+    if not UPLOADS_DIR.exists():
+        return []
+    out = []
+    for p in sorted(UPLOADS_DIR.iterdir()):
+        if p.is_file() and _asset_kind(p.name):
+            out.append({"name": p.name, "path": f"uploads/{p.name}",
+                        "kind": _asset_kind(p.name),
+                        "size_kb": round(p.stat().st_size / 1024, 1)})
+    return out
+
+
+@app.get("/api/assets")
+def api_assets():
+    return jsonify(assets=_list_assets(), dir=str(UPLOADS_DIR))
+
+
+@app.post("/api/assets")
+def api_upload_asset():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify(error="No file provided."), 400
+    safe = secure_filename(f.filename)
+    if not safe or _asset_kind(safe) is None:
+        return jsonify(error="Unsupported file type. Use image, video, or audio."), 400
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    dest = UPLOADS_DIR / safe
+    # Avoid clobbering: add a numeric suffix if the name already exists.
+    stem, ext = Path(safe).stem, Path(safe).suffix
+    i = 1
+    while dest.exists():
+        dest = UPLOADS_DIR / f"{stem}-{i}{ext}"
+        i += 1
+    f.save(str(dest))
+    return jsonify(name=dest.name, path=f"uploads/{dest.name}", kind=_asset_kind(dest.name))
+
+
+@app.delete("/api/assets/<name>")
+def api_delete_asset(name: str):
+    if "/" in name or "\\" in name:
+        abort(404)
+    path = (UPLOADS_DIR / name).resolve()
+    if not str(path).startswith(str(UPLOADS_DIR.resolve())) or not path.exists():
+        abort(404)
+    path.unlink()
+    return jsonify(ok=True)
+
+
 def _safe_output(name: str) -> Path:
     if not name.endswith(".mp4") or "/" in name or "\\" in name:
         abort(404)
@@ -520,6 +696,7 @@ INDEX_HTML = r"""<!doctype html>
       <label for="demo">Demo</label>
       <div class="row">
         <select id="demo"></select>
+        <button class="ghost" id="previewDemo" style="flex:0 0 auto;">👁 Live preview</button>
         <button class="primary" id="renderDemo">▶ Render</button>
       </div>
       <div class="desc" id="demoDesc"></div>
@@ -565,11 +742,22 @@ INDEX_HTML = r"""<!doctype html>
         </div>
       </div>
 
+      <details class="sp" id="assetsBox">
+        <summary class="hint">Assets — upload audio / images / video to use in this work</summary>
+        <p class="muted">Files are saved to <code>remotion-composer/public/uploads/</code> and referenced by their path. They load in both live preview and final render.</p>
+        <div class="row">
+          <input type="file" id="assetFile" accept="image/*,video/*,audio/*" style="flex:1;" />
+          <button class="ghost" id="uploadAsset" style="flex:0 0 auto;">⬆ Upload</button>
+        </div>
+        <div id="assetList" class="sp"></div>
+      </details>
+
       <label class="sp" for="workProps">Props JSON</label>
       <textarea id="workProps" spellcheck="false"></textarea>
       <p class="muted" id="workMeta"></p>
       <div class="row sp">
         <button class="ghost" id="saveWork" style="flex:0 0 auto;">💾 Save</button>
+        <button class="ghost" id="previewWork" style="flex:0 0 auto;">👁 Live preview</button>
         <button class="primary" id="renderWork" style="flex:0 0 auto;">▶ Render</button>
       </div>
     </div>
@@ -577,6 +765,13 @@ INDEX_HTML = r"""<!doctype html>
     <div class="card" id="worksEmpty">
       <p class="muted" style="margin:0;">No works yet — create one above to start building your own video.</p>
     </div>
+  </div>
+
+  <!-- ===================== SHARED LIVE PREVIEW ===================== -->
+  <div class="card" id="previewCard" style="display:none;">
+    <label>Live preview <span class="hint" id="previewStatus"></span></label>
+    <div id="player-root" style="background:#000;border-radius:8px;min-height:120px;"></div>
+    <p class="muted">Plays in your browser via Remotion Player — no render needed. Reflects the current props each time you click <em>Live preview</em>.</p>
   </div>
 
   <!-- ===================== SHARED RUN + RESULT ===================== -->
@@ -659,6 +854,7 @@ async function loadWorks(selectName) {
   if (selectName) sel.value = selectName;
   sel.onchange = loadWorkProps;
   await loadWorkProps();
+  loadAssets();
 }
 async function loadWorkProps() {
   const name = $("work").value;
@@ -712,6 +908,77 @@ $("saveWork").onclick = async () => {
   toast("Saved " + name);
 };
 $("renderWork").onclick = () => startRender({ kind: "work", name: $("work").value, props: $("workProps").value }, $("renderWork"));
+
+// ---- Live preview (Remotion Player, no render) ----
+let previewLoaded = false, previewLoading = null;
+function setPreviewStatus(t) { $("previewStatus").textContent = t ? "— " + t : ""; }
+function ensurePreviewBundle() {
+  if (previewLoaded) return Promise.resolve(true);
+  if (previewLoading) return previewLoading;
+  previewLoading = new Promise((resolve) => {
+    const s = document.createElement("script");
+    s.src = "/preview.bundle.js?t=" + Date.now();
+    s.onload = () => { previewLoaded = !!window.OMPreview; resolve(previewLoaded); };
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+  return previewLoading;
+}
+async function livePreview(propsText) {
+  let props; try { props = JSON.parse(propsText); } catch (e) { toast("Fix JSON first"); return; }
+  $("previewCard").style.display = "block";
+  setPreviewStatus("loading engine…");
+  const ok = await ensurePreviewBundle();
+  if (!ok || !window.OMPreview) { setPreviewStatus("unavailable — run `npm install` in remotion-composer, see server log"); return; }
+  setPreviewStatus("");
+  try { window.OMPreview.mount(props); } catch (e) { setPreviewStatus("error: " + e); return; }
+  $("previewCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+$("previewDemo").onclick = () => livePreview($("demoProps").value);
+$("previewWork").onclick = () => livePreview($("workProps").value);
+
+// ---- Uploadable assets ----
+async function loadAssets() {
+  const d = await (await fetch("/api/assets")).json();
+  const box = $("assetList"); box.innerHTML = "";
+  if (!d.assets.length) { box.innerHTML = '<p class="muted" style="margin:0;">No assets yet.</p>'; return; }
+  for (const a of d.assets) {
+    const row = document.createElement("div");
+    row.className = "row"; row.style.marginBottom = "6px"; row.style.alignItems = "center";
+    const icon = a.kind === "audio" ? "🎵" : a.kind === "video" ? "🎬" : "🖼";
+    let actions = "";
+    if (a.kind === "audio") actions = `<button class="ghost om-a" data-act="music" style="flex:0 0 auto;">Set music</button><button class="ghost om-a" data-act="narration" style="flex:0 0 auto;">Set narration</button>`;
+    else actions = `<button class="ghost om-a" data-act="scene" style="flex:0 0 auto;">Add as scene</button>`;
+    row.innerHTML = `<span style="flex:1;font-size:13px;">${icon} ${a.name} <span class="muted">(${a.size_kb} KB · ${a.path})</span></span>${actions}<button class="ghost om-a" data-act="copy" style="flex:0 0 auto;">Copy</button><button class="danger om-a" data-act="del" style="flex:0 0 auto;">✕</button>`;
+    row.querySelectorAll(".om-a").forEach((b) => { b.onclick = () => assetAction(b.dataset.act, a); });
+    box.appendChild(row);
+  }
+}
+function assetAction(act, a) {
+  if (act === "copy") { navigator.clipboard?.writeText(a.path); toast("Copied " + a.path); return; }
+  if (act === "del") { fetch("/api/assets/" + encodeURIComponent(a.name), { method: "DELETE" }).then(() => { toast("Deleted"); loadAssets(); }); return; }
+  const p = currentProps(); if (!p) { toast("Fix JSON first"); return; }
+  if (act === "scene") {
+    if (!Array.isArray(p.cuts)) p.cuts = [];
+    const start = p.cuts.length ? Math.max(...p.cuts.map((c) => c.out_seconds || 0)) : 0;
+    const dur = a.kind === "video" ? 6 : 4;
+    p.cuts.push({ id: a.kind + "-" + (p.cuts.length + 1), source: a.path, in_seconds: Math.round(start * 100) / 100, out_seconds: Math.round((start + dur) * 100) / 100 });
+  } else if (act === "music") {
+    p.audio = p.audio || {}; p.audio.music = Object.assign({ volume: 0.15, loop: true, fadeInSeconds: 2, fadeOutSeconds: 3 }, p.audio.music || {}, { src: a.path });
+  } else if (act === "narration") {
+    p.audio = p.audio || {}; p.audio.narration = Object.assign({ volume: 1 }, p.audio.narration || {}, { src: a.path });
+  }
+  $("workProps").value = JSON.stringify(p, null, 2); updateMeta();
+  toast(act === "scene" ? "Added scene" : act === "music" ? "Set as music" : "Set as narration");
+}
+$("uploadAsset").onclick = async () => {
+  const f = $("assetFile").files[0];
+  if (!f) { toast("Choose a file"); return; }
+  const fd = new FormData(); fd.append("file", f);
+  const r = await (await fetch("/api/assets", { method: "POST", body: fd })).json();
+  if (r.error) { toast(r.error); return; }
+  $("assetFile").value = ""; toast("Uploaded " + r.name); loadAssets();
+};
 
 // ---- Shared render flow ----
 async function startRender(body, btn) {

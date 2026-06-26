@@ -195,41 +195,33 @@ const ROAD_W = 300, ROAD_X = (VW-ROAD_W)/2;
 const terrain = document.createElement('canvas'); terrain.width=VW; terrain.height=TH;
 const tctx = terrain.getContext('2d');
 function buildTerrain(){
-  // 草地底色 + 斑驳明暗
-  const g=tctx.createLinearGradient(0,0,VW,0);
-  g.addColorStop(0,'#2c4a1c'); g.addColorStop(0.5,'#345a22'); g.addColorStop(1,'#2c4a1c');
-  tctx.fillStyle=g; tctx.fillRect(0,0,VW,TH);
-  for(let i=0;i<1400;i++){
-    const x=rand(0,VW), y=rand(0,TH), r=rand(6,26);
-    tctx.fillStyle = Math.random()<0.5? 'rgba(40,74,26,.5)':'rgba(58,96,36,.45)';
+  // 沙漠底色（橙黄，参考正版赤色要塞）
+  tctx.fillStyle='#d2913f'; tctx.fillRect(0,0,VW,TH);
+  // 大块斑驳明暗
+  for(let i=0;i<1700;i++){
+    const x=rand(0,VW), y=rand(0,TH), r=rand(8,34);
+    const c=Math.random(); tctx.fillStyle = c<0.4?'rgba(184,108,40,.40)':c<0.7?'rgba(200,140,70,.35)':'rgba(224,170,90,.4)';
     tctx.beginPath(); tctx.arc(x,y,r,0,TAU); tctx.fill();
   }
-  // 细草点
-  for(let i=0;i<2600;i++){
-    tctx.fillStyle = Math.random()<0.5?'#274a18':'#3e6a26';
-    const s=rand(1,2.4); tctx.fillRect(rand(0,VW),rand(0,TH),s,s);
+  // 沙砾点
+  for(let i=0;i<3200;i++){
+    tctx.fillStyle = Math.random()<0.5?'rgba(150,90,34,.55)':'rgba(232,178,104,.55)';
+    const s=rand(1,2.6); tctx.fillRect(rand(0,VW),rand(0,TH),s,s);
   }
-  // 土路
-  const rg=tctx.createLinearGradient(ROAD_X,0,ROAD_X+ROAD_W,0);
-  rg.addColorStop(0,'#5a4a2c'); rg.addColorStop(0.5,'#6e5a34'); rg.addColorStop(1,'#5a4a2c');
-  tctx.fillStyle=rg; tctx.fillRect(ROAD_X,0,ROAD_W,TH);
-  // 路面砂砾
-  for(let i=0;i<1600;i++){
-    tctx.fillStyle = Math.random()<0.5?'rgba(90,72,40,.6)':'rgba(140,116,66,.5)';
-    const s=rand(1,3); tctx.fillRect(rand(ROAD_X,ROAD_X+ROAD_W),rand(0,TH),s,s);
+  // 偶发的深色碎石/焦土区，打破单调
+  for(let i=0;i<46;i++){
+    const x=rand(20,VW-20), y=rand(0,TH), r=rand(14,40);
+    tctx.fillStyle='rgba(120,74,30,.30)'; tctx.beginPath(); tctx.arc(x,y,r,0,TAU); tctx.fill();
+    for(let j=0;j<8;j++){ tctx.fillStyle='rgba(90,58,26,.5)';
+      tctx.fillRect(x+rand(-r,r),y+rand(-r,r),rand(2,4),rand(2,4)); }
   }
-  // 车辙
-  tctx.strokeStyle='rgba(70,54,28,.55)'; tctx.lineWidth=10;
-  for(const cx of [VW/2-60, VW/2+60]){
+  // 浅色流沙带（横向波纹），增加层次
+  tctx.strokeStyle='rgba(232,180,108,.18)'; tctx.lineWidth=6;
+  for(let y=20;y<TH;y+=70){
     tctx.beginPath();
-    for(let y=0;y<=TH;y+=20) tctx.lineTo(cx+Math.sin(y*0.02)*6, y);
+    for(let x=0;x<=VW;x+=24) tctx.lineTo(x, y+Math.sin(x*0.03+y)*8);
     tctx.stroke();
   }
-  // 路肩
-  tctx.fillStyle='rgba(30,26,14,.5)';
-  tctx.fillRect(ROAD_X-4,0,4,TH); tctx.fillRect(ROAD_X+ROAD_W,0,4,TH);
-  tctx.fillStyle='rgba(150,160,90,.25)';
-  tctx.fillRect(ROAD_X-7,0,3,TH); tctx.fillRect(ROAD_X+ROAD_W+4,0,3,TH);
 }
 
 //============================ 实体生成 ============================//
@@ -255,17 +247,15 @@ function floatText(x,y,txt,c){ floats.push({x,y,txt,c,life:60}); }
 
 //============================ 场景装饰（树木/掩体/废墟） ============================//
 function spawnScenery(){
-  const onLeft = Math.random()<0.5;
-  const side = onLeft? rand(8,ROAD_X-30) : rand(ROAD_X+ROAD_W+22,VW-8);
+  // 开阔沙漠战场：装饰散布全屏，但避开正中央以免挡住激战区
   const r=Math.random();
-  let kind='tree';
-  if(r<0.58) kind='tree';
-  else if(r<0.74) kind='bush';
-  else if(r<0.86) kind='rock';
-  else if(r<0.95) kind='sandbag';     // 沿路边的沙袋墙
+  let kind;
+  if(r<0.40) kind='tree';
+  else if(r<0.58) kind='rock';
+  else if(r<0.72) kind='bush';
+  else if(r<0.88) kind='sandbag';
   else kind='ruin';
-  let x=side;
-  if(kind==='sandbag') x = onLeft? ROAD_X-18 : ROAD_X+ROAD_W+18;
+  const x = rand(14, VW-14);
   scenery.push({x, y:-40, kind, t:rand(0,99), scale:rand(0.85,1.25)});
 }
 
@@ -292,17 +282,20 @@ function updateSpawns(dt){
   // 过关
   if(game.stageProgress>=game.stageLen && enemies.length<3){ nextStage(); return; }
   spawnAcc+=dt;
-  const interval=clamp(70-game.stage*4,32,70);
+  const interval=clamp(56-game.stage*4,26,56);
   if(spawnAcc>=interval){
     spawnAcc=0;
     const r=Math.random(), x=rand(40,VW-40);
-    if(r<0.38){ spawnEnemy('soldier',x,-20);
-      if(Math.random()<0.4) spawnEnemy('soldier',clamp(x+rand(-40,40),30,VW-30),-40); }
-    else if(r<0.60){ spawnEnemy('tank',x,-30); }
-    else if(r<0.74){ spawnEnemy('turret',rand(50,VW-50),-30); }
-    else if(r<0.84){ spawnEnemy('heli',rand(50,VW-50),-30); }
-    else if(r<0.91){ spawnEnemy('bunker',rand(70,VW-70),-40); }
-    else if(r<0.97){ spawnPOW(rand(50,VW-50),-30); }
+    if(r<0.52){ // 坦克为主力，成群出现
+      const n=randi(1,3);
+      for(let i=0;i<n;i++) spawnEnemy('tank',clamp(x+rand(-90,90),30,VW-30),-30-i*46);
+    }
+    else if(r<0.70){ spawnEnemy('soldier',x,-20);
+      if(Math.random()<0.5) spawnEnemy('soldier',clamp(x+rand(-50,50),30,VW-30),-40); }
+    else if(r<0.81){ spawnEnemy('turret',rand(50,VW-50),-30); }
+    else if(r<0.89){ spawnEnemy('heli',rand(50,VW-50),-30); }
+    else if(r<0.94){ spawnEnemy('bunker',rand(70,VW-70),-40); }
+    else if(r<0.985){ spawnPOW(rand(50,VW-50),-30); }
     else { spawnItem(rand(50,VW-50),-30,'hp'); }
   }
 }
@@ -602,21 +595,25 @@ function drawEnemy(en){
     ctx.fillStyle='#5a1e1e'; ctx.beginPath(); ctx.arc(0,-7,5,Math.PI,TAU); ctx.fill(); // 钢盔
     ctx.fillStyle='#222'; ctx.fillRect(3,-2,9,2.4);                       // 枪
   } else if(en.type==='tank'){
+    // 绿色敌坦克（参考正版赤色要塞）
     shadow(en.x+3,en.y+14,18,7); ctx.translate(en.x,en.y);
-    ctx.fillStyle='#1c0c0c';
+    ctx.fillStyle='#15200c';
     ctx.fillRect(-18,-19,5,38); ctx.fillRect(13,-19,5,38);
-    ctx.fillStyle='#3a1414';
+    ctx.fillStyle='#33442a';
     for(let ty=-18;ty<18;ty+=5){ ctx.fillRect(-18,ty,5,2.4); ctx.fillRect(13,ty,5,2.4); }
     const bg=ctx.createLinearGradient(-14,0,14,0);
-    bg.addColorStop(0,'#4a1c1c'); bg.addColorStop(0.5,'#7a3030'); bg.addColorStop(1,'#4a1c1c');
+    bg.addColorStop(0,'#2f4c1c'); bg.addColorStop(0.5,'#5b8a30'); bg.addColorStop(1,'#2f4c1c');
     ctx.fillStyle=bg; roundRect(-14,-17,28,34,4); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.1)'; ctx.fillRect(-12,-15,24,5);
+    ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(-12,-15,24,5);
     const a=aimAngle(en); ctx.rotate(a+Math.PI/2);
-    ctx.fillStyle='#2a1010'; ctx.fillRect(-3,0,6,24);
-    ctx.fillStyle='#5a2424'; ctx.fillRect(-3,20,6,4);
+    // 浅灰炮管
+    ctx.fillStyle='#cfd2c4'; ctx.fillRect(-2.6,0,5.2,24);
+    ctx.fillStyle='#9aa08c'; ctx.fillRect(-2.6,0,2,24);
+    ctx.fillStyle='#3a4a2a'; ctx.fillRect(-3.4,20,6.8,4);
     const tg=ctx.createRadialGradient(-2,-2,1,0,0,11);
-    tg.addColorStop(0,'#a85050'); tg.addColorStop(1,'#6a2828');
+    tg.addColorStop(0,'#7fb046'); tg.addColorStop(1,'#3c5e24');
     ctx.fillStyle=tg; ctx.beginPath(); ctx.arc(0,0,10,0,TAU); ctx.fill();
+    ctx.fillStyle='#2f4c1c'; ctx.beginPath(); ctx.arc(0,0,3.4,0,TAU); ctx.fill();
   } else if(en.type==='turret'){
     shadow(en.x+2,en.y+4,17,8); ctx.translate(en.x,en.y);
     // 沙袋环

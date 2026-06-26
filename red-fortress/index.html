@@ -119,17 +119,23 @@
 "use strict";
 //============================ 基础设置 ============================//
 const VW = 480, VH = 640;            // 逻辑坐标系
-const RS = Math.min(2, Math.max(1, Math.round(window.devicePixelRatio||1)+1)); // 高清渲染倍率
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-canvas.width = VW*RS; canvas.height = VH*RS;
-ctx.scale(RS,RS);
-ctx.imageSmoothingEnabled = true;
+const BW = 240, BH = 320;            // 低分辨率像素缓冲（NES 风：1 精灵格=1 缓冲像素，整数网格）
+const SX = BW/VW, SY = BH/VH;        // 逻辑 → 缓冲 缩放
+const RS = Math.min(3, Math.max(2, Math.round(window.devicePixelRatio||1)+1)); // 呈现倍率
+// 可见画布（高分辨率呈现，最近邻锐利放大像素缓冲）
+const view = document.getElementById('game');
+const vctx = view.getContext('2d');
+view.width = VW*RS; view.height = VH*RS;
+vctx.imageSmoothingEnabled = false;
+// 离屏像素场景缓冲：所有绘制都在这里完成
+const scene = document.createElement('canvas'); scene.width=BW; scene.height=BH;
+const ctx = scene.getContext('2d');
+ctx.imageSmoothingEnabled = false;
 
 function fit(){
   const s = Math.min(window.innerWidth/VW, window.innerHeight/VH);
-  canvas.style.width = (VW*s)+'px';
-  canvas.style.height = (VH*s)+'px';
+  view.style.width = (VW*s)+'px';
+  view.style.height = (VH*s)+'px';
 }
 window.addEventListener('resize', fit); fit();
 
@@ -195,32 +201,28 @@ const ROAD_W = 300, ROAD_X = (VW-ROAD_W)/2;
 const terrain = document.createElement('canvas'); terrain.width=VW; terrain.height=TH;
 const tctx = terrain.getContext('2d');
 function buildTerrain(){
-  // 沙漠底色（橙黄，参考正版赤色要塞）
-  tctx.fillStyle='#d2913f'; tctx.fillRect(0,0,VW,TH);
-  // 大块斑驳明暗
-  for(let i=0;i<1700;i++){
-    const x=rand(0,VW), y=rand(0,TH), r=rand(8,34);
-    const c=Math.random(); tctx.fillStyle = c<0.4?'rgba(184,108,40,.40)':c<0.7?'rgba(200,140,70,.35)':'rgba(224,170,90,.4)';
-    tctx.beginPath(); tctx.arc(x,y,r,0,TAU); tctx.fill();
+  // 像素沙地：以 4px 方块铺底（对齐缓冲网格），多色调抖动，营造 NES 颗粒感
+  const BLK=4;
+  const sand=['#d2913f','#cf8a39','#c87e30','#dba055','#c6822f','#d59647'];
+  for(let y=0;y<TH;y+=BLK) for(let x=0;x<VW;x+=BLK){
+    tctx.fillStyle=sand[(Math.random()*sand.length)|0];
+    tctx.fillRect(x,y,BLK,BLK);
   }
-  // 沙砾点
-  for(let i=0;i<3200;i++){
-    tctx.fillStyle = Math.random()<0.5?'rgba(150,90,34,.55)':'rgba(232,178,104,.55)';
-    const s=rand(1,2.6); tctx.fillRect(rand(0,VW),rand(0,TH),s,s);
+  // 细颗粒（深/浅）抖动点
+  for(let i=0;i<5000;i++){
+    tctx.fillStyle = Math.random()<0.5?'#b06c28':'#e7b366';
+    const x=(rand(0,VW)|0)&~1, y=(rand(0,TH)|0)&~1;
+    tctx.fillRect(x,y,2,2);
   }
-  // 偶发的深色碎石/焦土区，打破单调
-  for(let i=0;i<46;i++){
-    const x=rand(20,VW-20), y=rand(0,TH), r=rand(14,40);
-    tctx.fillStyle='rgba(120,74,30,.30)'; tctx.beginPath(); tctx.arc(x,y,r,0,TAU); tctx.fill();
-    for(let j=0;j<8;j++){ tctx.fillStyle='rgba(90,58,26,.5)';
-      tctx.fillRect(x+rand(-r,r),y+rand(-r,r),rand(2,4),rand(2,4)); }
-  }
-  // 浅色流沙带（横向波纹），增加层次
-  tctx.strokeStyle='rgba(232,180,108,.18)'; tctx.lineWidth=6;
-  for(let y=20;y<TH;y+=70){
-    tctx.beginPath();
-    for(let x=0;x<=VW;x+=24) tctx.lineTo(x, y+Math.sin(x*0.03+y)*8);
-    tctx.stroke();
+  // 焦土弹坑（块状圆），打破单调
+  for(let i=0;i<55;i++){
+    const cx=(rand(20,VW-20)|0)&~3, cy=(rand(0,TH)|0)&~3, r=rand(10,30);
+    for(let yy=-r;yy<=r;yy+=BLK) for(let xx=-r;xx<=r;xx+=BLK){
+      if(xx*xx+yy*yy<=r*r){
+        tctx.fillStyle = Math.random()<0.6?'#9a6328':'#7d4f20';
+        tctx.fillRect(cx+xx,cy+yy,BLK,BLK);
+      }
+    }
   }
 }
 
@@ -471,6 +473,9 @@ function addScore(n){ game.score+=n; $('score').textContent=game.score; }
 
 //============================ 渲染 ============================//
 function draw(){
+  // 基准变换：逻辑坐标 → 低分缓冲
+  ctx.setTransform(SX,0,0,SY,0,0);
+  ctx.imageSmoothingEnabled=false;
   ctx.save();
   if(game.shake>0){ ctx.translate(rand(-game.shake,game.shake),rand(-game.shake,game.shake)); }
 
@@ -537,6 +542,10 @@ function draw(){
   // 暗角
   if(!vignette) buildVignette();
   ctx.drawImage(vignette,0,0,VW,VH);
+
+  // 呈现：把低分像素缓冲最近邻锐利放大到可见画布
+  vctx.imageSmoothingEnabled=false;
+  vctx.drawImage(scene,0,0,view.width,view.height);
 }
 
 let vignette=null;
@@ -548,183 +557,133 @@ function buildVignette(){
   v.fillStyle=g; v.fillRect(0,0,VW,VH);
 }
 
-function shadow(x,y,w,h){
-  ctx.fillStyle='rgba(0,0,0,.28)';
-  ctx.beginPath(); ctx.ellipse(x,y,w,h,0,0,TAU); ctx.fill();
+//============================ 像素精灵系统 ============================//
+// 1 格 = 1 缓冲像素；以 UNIT=2 逻辑像素绘制（SX=0.5 → 恰好 1 缓冲像素），整数网格、锐利无糊
+const UNIT=2;
+const SPR={};
+function newSpr(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+function R(x,col){ x.fillStyle=col; for(let i=2;i<arguments.length;i+=4) x.fillRect(arguments[i],arguments[i+1],arguments[i+2],arguments[i+3]); }
+
+function buildSprites(){
+  let c,x;
+  // —— 玩家吉普（绿，机枪朝上） 16x18 ——
+  c=newSpr(16,18); x=c.getContext('2d');
+  R(x,'#0c0a05', 1,4,2,5, 13,4,2,5, 1,10,2,5, 13,10,2,5);   // 轮胎
+  R(x,'#0e1308', 3,3,10,13);                                  // 描边
+  R(x,'#27521a', 4,4,8,11); R(x,'#3f7e22', 4,5,8,5); R(x,'#6fb437', 5,5,6,2); // 车体
+  R(x,'#161009', 5,9,6,4); R(x,'#e2b07a', 7,10,2,2);          // 驾驶舱+驾驶员
+  R(x,'#0e1308', 6,2,4,4); R(x,'#3b3f36', 7,3,2,3);           // 机枪座
+  R(x,'#c7ccba', 7,0,2,4); R(x,'#8f9484', 7,0,1,4);           // 炮管
+  SPR.player=c;
+  // —— 敌坦克（绿，炮管朝下指向玩家） 18x20 ——
+  c=newSpr(18,20); x=c.getContext('2d');
+  R(x,'#0f150a', 0,1,4,18, 14,1,4,18);                        // 履带
+  x.fillStyle='#2c3a22'; for(let ty=2;ty<19;ty+=3){ x.fillRect(0,ty,4,1); x.fillRect(14,ty,4,1); }
+  R(x,'#0e1408', 4,2,10,16);                                  // 描边
+  R(x,'#2f4c1c', 5,3,8,14); R(x,'#5b8a30', 5,3,8,4); R(x,'#3f6a24', 5,9,8,7); // 车体
+  R(x,'#0e1408', 6,7,6,6); R(x,'#6ca233', 7,8,4,4); R(x,'#2f4c1c', 8,9,2,2);  // 炮塔
+  R(x,'#0e1408', 8,12,2,7); R(x,'#c7ccba', 8,13,2,6);         // 炮管朝下
+  SPR.tank=c;
+  // —— 敌兵（红） 11x12 ——
+  c=newSpr(11,12); x=c.getContext('2d');
+  R(x,'#15110a', 3,4,5,7); R(x,'#a23a30', 4,5,3,6); R(x,'#d2554a', 4,5,3,2);  // 身
+  R(x,'#0e0a06', 3,1,5,4); R(x,'#43521f', 4,1,3,2); R(x,'#e2b07a', 4,3,3,2);  // 头盔+脸
+  R(x,'#1a1a16', 7,6,4,1);                                    // 枪
+  SPR.soldier=c;
+  // —— 炮塔（沙袋环+下向炮） 17x17 ——
+  c=newSpr(17,17); x=c.getContext('2d');
+  const ring=[[1,6],[1,9],[4,2],[9,2],[12,5],[13,9],[4,13],[9,13],[7,0],[7,14]];
+  x.fillStyle='#8a7444'; ring.forEach(r=>x.fillRect(r[0],r[1],4,3));
+  x.fillStyle='#665230'; ring.forEach(r=>x.fillRect(r[0],r[1]+2,4,1));
+  R(x,'#0e1209', 5,5,7,7); R(x,'#5b6450', 6,6,5,5); R(x,'#828b76', 6,6,5,2); // 基座
+  R(x,'#0e1209', 7,11,3,5); R(x,'#2a2a26', 7,11,3,4);         // 炮管朝下
+  SPR.turret=c;
+  // —— 碉堡 29x24 ——
+  c=newSpr(29,24); x=c.getContext('2d');
+  R(x,'#23201a', 0,2,29,21); R(x,'#5a5240', 2,3,25,18); R(x,'#736a52', 2,3,25,4); // 混凝土
+  R(x,'#120f09', 6,10,17,5); R(x,'#3a3428', 2,20,25,3);       // 射击口+底座
+  x.fillStyle='#2a2418'; [[4,5],[24,5],[4,17],[24,17]].forEach(r=>x.fillRect(r[0],r[1],2,2)); // 铆钉
+  SPR.bunker=c;
+  // —— 直升机机身（旋翼另画） 20x16 ——
+  c=newSpr(20,16); x=c.getContext('2d');
+  R(x,'#2c3a2a', 9,0,3,7); R(x,'#3a4a38', 7,0,2,3);           // 尾梁+尾翼
+  R(x,'#0e1209', 4,4,12,11); R(x,'#46584a', 5,5,10,9); R(x,'#5c705c', 5,5,10,3); // 机身
+  R(x,'#9fd0e0', 7,11,6,3); R(x,'#1c241c', 5,15,3,1, 12,15,3,1); // 玻璃+起落架
+  SPR.heli=c;
+  // —— 战俘（白旗投降） 12x14 ——
+  c=newSpr(12,14); x=c.getContext('2d');
+  R(x,'#7a5a2a', 2,0,1,13); R(x,'#e8e8de', 3,1,6,4); R(x,'#cfcfc4', 3,4,6,1); // 旗
+  R(x,'#0e0a06', 5,5,5,8); R(x,'#e2b07a', 6,6,3,2); R(x,'#3a6ea5', 6,8,3,4); R(x,'#7aa6d0', 6,8,3,1); // 人
+  SPR.pow=c;
+  // —— 补给（医疗箱） 11x11 ——
+  c=newSpr(11,11); x=c.getContext('2d');
+  R(x,'#0e1209', 0,0,11,11); R(x,'#d8d2c0', 1,1,9,9); R(x,'#a89e84', 1,8,9,1);
+  R(x,'#b53028', 5,2,2,7, 2,5,7,2);                           // 红十字
+  SPR.item=c;
+  // —— 树（沙漠丛冠） 16x18 ——
+  c=newSpr(16,18); x=c.getContext('2d');
+  R(x,'#3a2a14', 7,9,2,8); R(x,'#16320f', 2,1,12,10); R(x,'#234d16', 3,2,10,7);
+  R(x,'#2f6a1e', 4,2,7,4); R(x,'#4a8a2c', 5,2,3,2);
+  SPR.tree=c;
+  // —— 灌木 12x8 ——
+  c=newSpr(12,8); x=c.getContext('2d');
+  R(x,'#173310', 1,1,10,6); R(x,'#27521a', 2,1,8,4); R(x,'#356226', 3,1,4,2);
+  SPR.bush=c;
+  // —— 岩石 12x8 ——
+  c=newSpr(12,8); x=c.getContext('2d');
+  R(x,'#322e26', 2,2,8,5); R(x,'#6b6258', 2,2,8,3); R(x,'#857d70', 3,2,3,1); R(x,'#48433a', 2,6,8,1);
+  SPR.rock=c;
+  // —— 废墟 18x14 ——
+  c=newSpr(18,14); x=c.getContext('2d');
+  R(x,'#2a261c', 1,1,16,12); R(x,'#574f40', 2,2,14,10); R(x,'#6b6150', 2,2,14,3);
+  R(x,'#15110a', 6,7,6,6); R(x,'#2a261c', 2,2,3,4, 13,5,3,5);
+  SPR.ruin=c;
 }
+
+function blit(spr,cx,cy){
+  const w=spr.width*UNIT, h=spr.height*UNIT;
+  // 对齐到偶数逻辑像素（=整数缓冲像素），保证像素锐利
+  const dx=Math.round((cx-w/2)/UNIT)*UNIT, dy=Math.round((cy-h/2)/UNIT)*UNIT;
+  ctx.drawImage(spr,dx,dy,w,h);
+}
+function shadow(x,y,w,h){ ctx.fillStyle='rgba(0,0,0,.30)'; ctx.beginPath(); ctx.ellipse(x,y,w,h,0,0,TAU); ctx.fill(); }
 
 function drawPlayer(){
   const p=player;
-  shadow(p.x+4,p.y+12,17,8);
-  if(p.inv>0 && Math.floor(p.inv/4)%2===0) return; // 受伤闪烁
-  ctx.save(); ctx.translate(p.x,p.y);
-  // 履带
-  ctx.fillStyle='#1a1a14';
-  for(const sx of [-15,11]){ ctx.fillRect(sx,-17,5,34);
-    ctx.fillStyle='#33332a';
-    for(let ty=-16;ty<16;ty+=5){ const o=(Math.floor((ty+p.tread)/5)%2)?1:0; ctx.fillRect(sx,ty+o,5,2.4); }
-    ctx.fillStyle='#1a1a14'; }
-  // 车体
-  const bg=ctx.createLinearGradient(-13,0,13,0);
-  bg.addColorStop(0,'#34501f'); bg.addColorStop(0.5,'#4f7a31'); bg.addColorStop(1,'#2d4a1c');
-  ctx.fillStyle=bg; roundRect(-13,-16,26,32,5); ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,.12)'; roundRect(-11,-14,9,28,3); ctx.fill();
-  // 驾驶舱
-  ctx.fillStyle='#243a14'; roundRect(-10,-4,20,15,3); ctx.fill();
-  ctx.fillStyle='#caa46a'; ctx.beginPath(); ctx.arc(0,3,4.5,0,TAU); ctx.fill();
-  ctx.fillStyle='#2a3a18'; ctx.fillRect(-4.5,-1,9,4);
-  // 炮塔 + 炮管（朝前）
-  ctx.fillStyle='#2a401a'; ctx.beginPath(); ctx.arc(0,-3,6.5,0,TAU); ctx.fill();
-  ctx.fillStyle='#1a1a16'; ctx.fillRect(-2.2,-24,4.4,16);
-  ctx.fillStyle='#3a3a30'; ctx.fillRect(-2.2,-24,4.4,3);
-  // 枪口火焰
-  if(p.muzzle>0){
-    ctx.fillStyle='#ffe27a'; ctx.beginPath(); ctx.arc(0,-25,rand(3,5),0,TAU); ctx.fill();
-    ctx.fillStyle='rgba(255,140,40,.7)'; ctx.beginPath(); ctx.arc(0,-25,rand(5,8),0,TAU); ctx.fill();
+  shadow(p.x,p.y+16,15,5);
+  if(p.inv>0 && Math.floor(p.inv/4)%2===0) return;
+  blit(SPR.player,p.x,p.y);
+  if(p.muzzle>0){ // 枪口火焰
+    ctx.fillStyle='#ffe27a'; ctx.fillRect(p.x-3,p.y-26,6,6);
+    ctx.fillStyle='#ff8a3c'; ctx.fillRect(p.x-2,p.y-30,4,5);
   }
-  ctx.restore();
 }
-
 function drawEnemy(en){
-  ctx.save();
-  if(en.type==='soldier'){
-    shadow(en.x+2,en.y+9,8,4); ctx.translate(en.x,en.y);
-    ctx.fillStyle='#8a3030'; roundRect(-6,-2,12,13,3); ctx.fill();        // 身
-    ctx.fillStyle='#a84040'; ctx.fillRect(-6,-2,12,4);
-    ctx.fillStyle='#caa06a'; ctx.beginPath(); ctx.arc(0,-6,5,0,TAU); ctx.fill(); // 头
-    ctx.fillStyle='#5a1e1e'; ctx.beginPath(); ctx.arc(0,-7,5,Math.PI,TAU); ctx.fill(); // 钢盔
-    ctx.fillStyle='#222'; ctx.fillRect(3,-2,9,2.4);                       // 枪
-  } else if(en.type==='tank'){
-    // 绿色敌坦克（参考正版赤色要塞）
-    shadow(en.x+3,en.y+14,18,7); ctx.translate(en.x,en.y);
-    ctx.fillStyle='#15200c';
-    ctx.fillRect(-18,-19,5,38); ctx.fillRect(13,-19,5,38);
-    ctx.fillStyle='#33442a';
-    for(let ty=-18;ty<18;ty+=5){ ctx.fillRect(-18,ty,5,2.4); ctx.fillRect(13,ty,5,2.4); }
-    const bg=ctx.createLinearGradient(-14,0,14,0);
-    bg.addColorStop(0,'#2f4c1c'); bg.addColorStop(0.5,'#5b8a30'); bg.addColorStop(1,'#2f4c1c');
-    ctx.fillStyle=bg; roundRect(-14,-17,28,34,4); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(-12,-15,24,5);
-    const a=aimAngle(en); ctx.rotate(a+Math.PI/2);
-    // 浅灰炮管
-    ctx.fillStyle='#cfd2c4'; ctx.fillRect(-2.6,0,5.2,24);
-    ctx.fillStyle='#9aa08c'; ctx.fillRect(-2.6,0,2,24);
-    ctx.fillStyle='#3a4a2a'; ctx.fillRect(-3.4,20,6.8,4);
-    const tg=ctx.createRadialGradient(-2,-2,1,0,0,11);
-    tg.addColorStop(0,'#7fb046'); tg.addColorStop(1,'#3c5e24');
-    ctx.fillStyle=tg; ctx.beginPath(); ctx.arc(0,0,10,0,TAU); ctx.fill();
-    ctx.fillStyle='#2f4c1c'; ctx.beginPath(); ctx.arc(0,0,3.4,0,TAU); ctx.fill();
-  } else if(en.type==='turret'){
-    shadow(en.x+2,en.y+4,17,8); ctx.translate(en.x,en.y);
-    // 沙袋环
-    ctx.fillStyle='#7a6a40';
-    for(let a=0;a<TAU;a+=TAU/9){ ctx.beginPath(); ctx.arc(Math.cos(a)*15,Math.sin(a)*15,5.5,0,TAU); ctx.fill(); }
-    ctx.fillStyle='#5a4c2c';
-    for(let a=0;a<TAU;a+=TAU/9){ ctx.beginPath(); ctx.arc(Math.cos(a)*15,Math.sin(a)*15,5.5,Math.PI*0.2,Math.PI*1.1); ctx.fill(); }
-    const g=ctx.createRadialGradient(-2,-2,2,0,0,12);
-    g.addColorStop(0,'#777'); g.addColorStop(1,'#3a3a3a');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,11,0,TAU); ctx.fill();
-    const a=aimAngle(en); ctx.rotate(a);
-    ctx.fillStyle='#1c1c1c'; ctx.fillRect(0,-3.5,22,7);
-    ctx.fillStyle='#333'; ctx.fillRect(18,-4.5,5,9);
-  } else if(en.type==='bunker'){
-    shadow(en.x+4,en.y+20,30,9); ctx.translate(en.x,en.y);
-    ctx.fillStyle='#3a3428'; roundRect(-29,-22,58,46,4); ctx.fill();
-    const g=ctx.createLinearGradient(0,-22,0,24);
-    g.addColorStop(0,'#7a7158'); g.addColorStop(1,'#574f3c');
-    ctx.fillStyle=g; roundRect(-25,-18,50,38,3); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.1)'; ctx.fillRect(-25,-18,50,6);
-    ctx.fillStyle='#15110a'; ctx.fillRect(-18,-4,36,11);              // 射击口
-    ctx.fillStyle='#2a2418'; ctx.fillRect(-29,16,58,6);
-    // 铆钉
-    ctx.fillStyle='#2a2418';
-    for(const rx of [-22,22]) for(const ry of [-15,12]){ ctx.beginPath(); ctx.arc(rx,ry,2,0,TAU); ctx.fill(); }
-  } else if(en.type==='heli'){
-    shadow(en.x+10,en.y+22,16,6); ctx.translate(en.x,en.y);
-    // 尾梁
-    ctx.fillStyle='#3a4a3a'; ctx.fillRect(-2,-4,26,6);
-    ctx.fillStyle='#2a3a2a'; ctx.fillRect(22,-9,4,12);
-    // 机身
-    const g=ctx.createLinearGradient(0,-10,0,12);
-    g.addColorStop(0,'#5a6a5a'); g.addColorStop(1,'#33433a');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(-6,0,14,11,0,0,TAU); ctx.fill();
-    ctx.fillStyle='#9fd0e0'; ctx.beginPath(); ctx.ellipse(-12,-1,5,5,0,0,TAU); ctx.fill(); // 座舱玻璃
-    ctx.fillStyle='#1c241c'; ctx.fillRect(-12,9,12,3);               // 起落架
-    ctx.fillRect(-12,8,2,4); ctx.fillRect(-2,8,2,4);
-    // 旋翼
-    ctx.save(); ctx.translate(-6,-9); ctx.rotate(en.rotor);
-    ctx.fillStyle='rgba(40,40,40,.85)';
-    ctx.fillRect(-26,-1.6,52,3.2); ctx.fillRect(-1.6,-26,3.2,52);
+  if(en.type==='heli'){
+    shadow(en.x,en.y+26,15,5);
+    blit(SPR.heli,en.x,en.y);
+    ctx.save(); ctx.translate(Math.round(en.x),Math.round(en.y-4)); ctx.rotate(en.rotor);
+    ctx.fillStyle='rgba(30,30,28,.9)'; ctx.fillRect(-26,-2,52,3); ctx.fillRect(-2,-26,3,52);
     ctx.restore();
-    ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(-6,-9,2.6,0,TAU); ctx.fill();
+    ctx.fillStyle='#1a1a18'; ctx.fillRect(en.x-2,en.y-6,4,4);
+  } else {
+    shadow(en.x,en.y+(en.type==='bunker'?20:en.type==='tank'?16:9),
+           en.type==='bunker'?28:en.type==='tank'?16:8, en.type==='bunker'?7:5);
+    blit(SPR[en.type],en.x,en.y);
   }
-  ctx.restore();
   // 血条
   const maxhp={tank:3,turret:4,bunker:8,heli:3}[en.type];
   if(maxhp && en.hp<maxhp){
-    const w=en.w; ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(en.x-w/2,en.y-en.h/2-8,w,4);
-    ctx.fillStyle='#ff5a3c'; ctx.fillRect(en.x-w/2,en.y-en.h/2-8,w*en.hp/maxhp,4);
+    const w=en.w; ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(en.x-w/2,en.y-en.h/2-6,w,3);
+    ctx.fillStyle='#ff5a3c'; ctx.fillRect(en.x-w/2,en.y-en.h/2-6,w*en.hp/maxhp,3);
   }
 }
-
 function drawScenery(s){
-  ctx.save(); ctx.translate(s.x,s.y); ctx.scale(s.scale,s.scale);
-  if(s.kind==='tree'){
-    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(7,9,16,7,0,0,TAU); ctx.fill();
-    ctx.fillStyle='#3a2a16'; ctx.fillRect(-3,2,6,12);                  // 树干
-    ctx.fillStyle='#1f4016';                                          // 树冠暗
-    for(const o of [[-9,-4],[9,-4],[0,-13],[-5,2],[6,2]]){ ctx.beginPath(); ctx.arc(o[0],o[1],11,0,TAU); ctx.fill(); }
-    ctx.fillStyle='#2f6020';                                          // 树冠亮
-    for(const o of [[-6,-7],[6,-7],[0,-15]]){ ctx.beginPath(); ctx.arc(o[0],o[1],8,0,TAU); ctx.fill(); }
-    ctx.fillStyle='rgba(150,200,90,.5)'; ctx.beginPath(); ctx.arc(-3,-12,5,0,TAU); ctx.fill();
-  } else if(s.kind==='bush'){
-    ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(2,6,12,5,0,0,TAU); ctx.fill();
-    ctx.fillStyle='#244a18'; for(const o of [[-7,0],[7,0],[0,-5]]){ ctx.beginPath(); ctx.arc(o[0],o[1],8,0,TAU); ctx.fill(); }
-    ctx.fillStyle='#356226'; ctx.beginPath(); ctx.arc(0,-4,6,0,TAU); ctx.fill();
-  } else if(s.kind==='rock'){
-    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(3,6,11,5,0,0,TAU); ctx.fill();
-    ctx.fillStyle='#6b6258'; ctx.beginPath(); ctx.moveTo(-10,6); ctx.lineTo(-6,-7); ctx.lineTo(6,-9); ctx.lineTo(11,4); ctx.lineTo(4,8); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#878073'; ctx.beginPath(); ctx.moveTo(-6,-7); ctx.lineTo(6,-9); ctx.lineTo(2,-2); ctx.lineTo(-4,-1); ctx.closePath(); ctx.fill();
-  } else if(s.kind==='sandbag'){
-    ctx.fillStyle='rgba(0,0,0,.2)'; ctx.fillRect(-16,8,34,5);
-    for(let r=0;r<3;r++) for(let c=0;c<4;c++){
-      const bx=-15+c*9+(r%2?4:0), by=4-r*7;
-      ctx.fillStyle=r%2?'#8a7a4c':'#9a8a58'; roundRect(bx,by,11,7,3); ctx.fill();
-      ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(bx,by+5,11,2);
-    }
-  } else if(s.kind==='ruin'){
-    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(-16,10,36,5);
-    ctx.fillStyle='#574f40'; ctx.fillRect(-16,-12,32,24);
-    ctx.fillStyle='#6b6150'; ctx.fillRect(-16,-12,32,5);
-    ctx.fillStyle='#2a2418'; ctx.fillRect(-6,2,12,10);                 // 残破门洞
-    ctx.fillStyle='#3a3428'; ctx.fillRect(-16,-12,6,8); ctx.fillRect(10,-4,6,10); // 破口
-  }
-  ctx.restore();
+  shadow(s.x, s.y+(s.kind==='tree'?15:6), s.kind==='tree'?11:9, 4);
+  blit(SPR[s.kind]||SPR.bush, s.x, s.y);
 }
-
-function drawPOW(p){
-  shadow(p.x+2,p.y+10,9,4);
-  ctx.save(); ctx.translate(p.x,p.y);
-  const wave=Math.sin(p.t*0.2)*2;
-  ctx.strokeStyle='#8a6a3a'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(-7,-13); ctx.lineTo(-7,9); ctx.stroke();
-  ctx.fillStyle='#f2f2ea'; ctx.beginPath(); ctx.moveTo(-7,-13); ctx.lineTo(7+wave,-9); ctx.lineTo(-7,-4); ctx.fill();
-  ctx.fillStyle='#e0c090'; ctx.beginPath(); ctx.arc(2,-3,4,0,TAU); ctx.fill();
-  ctx.fillStyle='#4a6a9a'; roundRect(-2,1,9,11,2); ctx.fill();
-  ctx.fillStyle='#3a5588'; ctx.fillRect(-2,1,9,3);
-  ctx.restore();
-}
-function drawItem(it){
-  shadow(it.x+2,it.y+9,11,4);
-  ctx.save(); ctx.translate(it.x,it.y);
-  const b=Math.sin(it.t*0.15)*2;
-  ctx.fillStyle='#15300f'; roundRect(-10,-10+b,20,20,4); ctx.fill();
-  const g=ctx.createLinearGradient(0,-10+b,0,10+b);
-  g.addColorStop(0,'#7fbe44'); g.addColorStop(1,'#4d8a28');
-  ctx.fillStyle=g; roundRect(-9,-9+b,18,18,3); ctx.fill();
-  ctx.fillStyle='#fff'; ctx.fillRect(-2,-7+b,4,14); ctx.fillRect(-7,-2+b,14,4);
-  ctx.restore();
-}
+function drawPOW(p){ shadow(p.x,p.y+12,8,4); blit(SPR.pow,p.x,p.y); }
+function drawItem(it){ const b=Math.sin(it.t*0.15)*2; shadow(it.x,it.y+10,10,4); blit(SPR.item,it.x,it.y+b); }
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
@@ -777,7 +736,7 @@ function loop(ts){
   else if(state===STATE.PLAY||state===STATE.PAUSE){ draw(); }
   requestAnimationFrame(loop);
 }
-buildTerrain(); buildVignette();
+buildSprites(); buildTerrain(); buildVignette();
 requestAnimationFrame(loop);
 </script>
 </body>
